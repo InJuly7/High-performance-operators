@@ -19,8 +19,7 @@ void cpu_sgemm(float *matrix_A_host, float *matrix_B_host, float *matrix_C_host_
 }
 
 #define FETCH_FLOAT4(pointer) (reinterpret_cast<float4 *>(&(pointer))[0])
-template <unsigned int BM, unsigned int BK, unsigned int BN, unsigned int ROW_PER_THREAD, unsigned int COL_PER_THREAD, unsigned int M, unsigned int K,
-          unsigned int N>
+template <unsigned int BM, unsigned int BK, unsigned int BN, unsigned int NUM_PER_THREAD, unsigned int M, unsigned int K, unsigned int N>
 __global__ void cuda_sgemm(float *matrix_A_device, float *matrix_B_device, float *matrix_C_device) {
     float *A_ptr_start = matrix_A_device + blockIdx.y * BM * K;
     float *B_ptr_start = matrix_B_device + blockIdx.x * BN;
@@ -28,23 +27,14 @@ __global__ void cuda_sgemm(float *matrix_A_device, float *matrix_B_device, float
 
     __shared__ float A_smem[BM][BK];
     __shared__ float B_smem[BK][BN];
-    const int NUM_PER_THREAD = ROW_PER_THREAD * COL_PER_THREAD;
+
     int A_smem_y = (threadIdx.x * NUM_PER_THREAD) / BK;
     int A_smem_x = (threadIdx.x * NUM_PER_THREAD) % BK;
     int B_smem_y = (threadIdx.x * NUM_PER_THREAD) / BN;
     int B_smem_x = (threadIdx.x * NUM_PER_THREAD) % BN;
 
-    float temp[ROW_PER_THREAD][COL_PER_THREAD] = {0.0f};
-    float row_frag[ROW_PER_THREAD] = {0.0f};
-    float col_frag[COL_PER_THREAD] = {0.0f};
+    float temp[NUM_PER_THREAD] = {0.0f};
 
-
-    const int thread_row = threadIdx.x / (BN / COL_PER_THREAD);
-    const int thread_col = threadIdx.x % (BN / COL_PER_THREAD);
-    const int c_row_start = thread_row * ROW_PER_THREAD;
-    const int c_col_start = thread_col * COL_PER_THREAD;
-
-    
     for(int i = 0; i < K; i += BK) {
         // GM ==> SM
         // 将相同内存地址的数据重新解释为一个 float4 对象
@@ -55,23 +45,17 @@ __global__ void cuda_sgemm(float *matrix_A_device, float *matrix_B_device, float
 
         __syncthreads();
 
-        for (int j = 0; j < BK; j++) {
-            // 写入寄存器
-            for (int j1 = 0; j1 < ROW_PER_THREAD; j1++) row_frag[j1] = A_smem[c_row_start + j1][j];
-            for (int j2 = 0; j2 < COL_PER_THREAD; j2++) col_frag[j2] = B_smem[j][c_col_start + j2];
-            for(int k1 = 0; k1 < ROW_PER_THREAD; k1++) {
-                for(int k2 = 0; k2 < COL_PER_THREAD; k2++) {
-                    temp[k1][k2] += row_frag[k1] * col_frag[k2];
-                }
+        for (int j = 0; j < NUM_PER_THREAD; j++) {
+            for (int k = 0; k < BK; k++) {
+                temp[j] += A_smem[A_smem_y][k] * B_smem[k][j + B_smem_x];
             }
         }
         __syncthreads();
     }
-
-    for (int i = 0; i < ROW_PER_THREAD; i++) {
-        for (int j = 0; j < COL_PER_THREAD; j++) {
-            C_ptr_start[(c_row_start + i) * N + c_col_start + j] = temp[i][j];
-        }
+    int C_gmem_y = (threadIdx.x * NUM_PER_THREAD) / BN;
+    int C_gmem_x = (threadIdx.x * NUM_PER_THREAD) % BN;
+    for(int i = 0; i < NUM_PER_THREAD; i++) {
+        C_ptr_start[C_gmem_y * N + C_gmem_x + i] = temp[i];
     }
 }
 
@@ -109,11 +93,10 @@ int main() {
     const int bk = 32;
     const int bn = 32;
     const int BLOCK_SIZE = 256;
-    const int ROW_PER_THREAD = 2;
-    const int COL_PER_THREAD = 2;
+    const int NUM_PER_THREAD = 4;
     dim3 block(BLOCK_SIZE);
     dim3 grid(n / bn, m / bm);
-    cuda_sgemm<bm, bk, bn, ROW_PER_THREAD, COL_PER_THREAD, m, k, n><<<grid, block>>>(matrix_A_device, matrix_B_device, matrix_C_device);
+    cuda_sgemm<bm, bk, bn, NUM_PER_THREAD, m, k, n><<<grid, block>>>(matrix_A_device, matrix_B_device, matrix_C_device);
 
     cudaMemcpy(matrix_C_host_gpu_calc, matrix_C_device, mem_size_C, cudaMemcpyDeviceToHost);
     printFloatArray(matrix_C_host_gpu_calc, 10);
