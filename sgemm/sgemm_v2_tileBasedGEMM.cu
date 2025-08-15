@@ -20,14 +20,13 @@ void cpu_sgemm(float *matrix_A_host, float *matrix_B_host, float *matrix_C_host_
 
 template <unsigned int BLOCK_SIZE, unsigned int M, unsigned int N, unsigned K>
 __global__ void cuda_sgemm(float *matrix_A_device, float *matrix_B_device, float *matrix_C_device) {
-
     float *A_ptr_start = matrix_A_device + blockDim.y * blockIdx.y * K;
     float *B_ptr_start = matrix_B_device + blockDim.x * blockIdx.x;
     float *C_ptr_start = matrix_C_device + blockDim.y * blockIdx.y * N + blockDim.x * blockIdx.x;
 
     __shared__ float A_smem[BLOCK_SIZE][BLOCK_SIZE];
     __shared__ float B_smem[BLOCK_SIZE][BLOCK_SIZE];
- 
+
     float temp = 0.0f;
     for (int i = 0; i < K; i += BLOCK_SIZE) {
         A_smem[threadIdx.y][threadIdx.x] = A_ptr_start[threadIdx.y * K + threadIdx.x + i];
@@ -76,7 +75,7 @@ int main() {
 
     const int BLOCK = 16;
     dim3 block(BLOCK, BLOCK);
-    dim3 grid((m + BLOCK - 1) / BLOCK, (n + BLOCK - 1) / BLOCK);
+    dim3 grid((n + BLOCK - 1) / BLOCK, (m + BLOCK - 1) / BLOCK);
     cuda_sgemm<BLOCK, m, n, k><<<grid, block>>>(matrix_A_device, matrix_B_device, matrix_C_device);
     cudaMemcpy(matrix_C_host_gpu_calc, matrix_C_device, mem_size_C, cudaMemcpyDeviceToHost);
     printFloatArray(matrix_C_host_gpu_calc, 10);

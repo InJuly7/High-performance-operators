@@ -93,7 +93,7 @@ int main() {
     const int BLOCK = 16;
     const int STRIDE = 2;
     dim3 block(BLOCK, BLOCK);
-    dim3 grid(m / (BLOCK*STRIDE), n / (BLOCK*STRIDE));
+    dim3 grid(n / (BLOCK * STRIDE), m / (BLOCK * STRIDE));
     cuda_sgemm<BLOCK, STRIDE, m, n, k><<<grid, block>>>(matrix_A_device, matrix_B_device, matrix_C_device);
 
     cudaMemcpy(matrix_C_host_gpu_calc, matrix_C_device, mem_size_C, cudaMemcpyDeviceToHost);

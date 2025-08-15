@@ -72,7 +72,7 @@ int main() {
 
     const int BLOCK = 16;
     dim3 block(BLOCK, BLOCK);
-    dim3 grid((m + BLOCK - 1) / BLOCK, (n + BLOCK - 1) / BLOCK);
+    dim3 grid((n + BLOCK - 1) / BLOCK, (m + BLOCK - 1) / BLOCK);
     cuda_sgemm<BLOCK, m, n, k><<<grid, block>>>(matrix_A_device, matrix_B_device, matrix_C_device);
     cudaMemcpy(matrix_C_host_gpu_calc, matrix_C_device, mem_size_C, cudaMemcpyDeviceToHost);
     printFloatArray(matrix_C_host_gpu_calc, 10);

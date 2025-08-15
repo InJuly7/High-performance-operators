@@ -35,13 +35,11 @@ __global__ void cuda_sgemm(float *matrix_A_device, float *matrix_B_device, float
 
     float temp[NUM_PER_THREAD] = {0.0f};
 
-    for(int i = 0; i < K; i += BK) {
+    for (int i = 0; i < K; i += BK) {
         // GM ==> SM
         // 将相同内存地址的数据重新解释为一个 float4 对象
-        FETCH_FLOAT4(A_smem[A_smem_y][A_smem_x]) =
-            FETCH_FLOAT4(A_ptr_start[A_smem_y * K + A_smem_x + i]);
-        FETCH_FLOAT4(B_smem[B_smem_y][B_smem_x]) =
-            FETCH_FLOAT4(B_ptr_start[(i + B_smem_y) * N + B_smem_x]);
+        FETCH_FLOAT4(A_smem[A_smem_y][A_smem_x]) = FETCH_FLOAT4(A_ptr_start[A_smem_y * K + A_smem_x + i]);
+        FETCH_FLOAT4(B_smem[B_smem_y][B_smem_x]) = FETCH_FLOAT4(B_ptr_start[(i + B_smem_y) * N + B_smem_x]);
 
         __syncthreads();
 
@@ -54,7 +52,7 @@ __global__ void cuda_sgemm(float *matrix_A_device, float *matrix_B_device, float
     }
     int C_gmem_y = (threadIdx.x * NUM_PER_THREAD) / BN;
     int C_gmem_x = (threadIdx.x * NUM_PER_THREAD) % BN;
-    for(int i = 0; i < NUM_PER_THREAD; i++) {
+    for (int i = 0; i < NUM_PER_THREAD; i++) {
         C_ptr_start[C_gmem_y * N + C_gmem_x + i] = temp[i];
     }
 }

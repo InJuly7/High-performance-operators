@@ -6,6 +6,8 @@
 
 #include "./include/util.hpp"
 
+#define FETCH_FLOAT4(pointer) (reinterpret_cast<float4 *>(&(pointer))[0])
+
 void cpu_sgemm(float *matrix_A_host, float *matrix_B_host, float *matrix_C_host_cpu_calc, const int M, const int N, const int K) {
     for (int m = 0; m < M; m++) {
         for (int n = 0; n < N; n++) {
@@ -18,8 +20,9 @@ void cpu_sgemm(float *matrix_A_host, float *matrix_B_host, float *matrix_C_host_
     }
 }
 
-#define FETCH_FLOAT4(pointer) (reinterpret_cast<float4 *>(&(pointer))[0])
-template <unsigned int BM, unsigned int BK, unsigned int BN, unsigned int NUM_PER_THREAD, unsigned int M, unsigned int K, unsigned int N>
+// 每个线程 计算 ROW_FRAG * COL_FRAG 个元素
+template <unsigned int BM, unsigned int BK, unsigned int BN, unsigned int ROW_FRAG, unsigned int COL_FRAG, unsigned int M, unsigned int K,
+          unsigned int N>
 __global__ void cuda_sgemm(float *matrix_A_device, float *matrix_B_device, float *matrix_C_device) {
     float *A_ptr_start = matrix_A_device + blockIdx.y * BM * K;
     float *B_ptr_start = matrix_B_device + blockIdx.x * BN;
@@ -27,29 +30,45 @@ __global__ void cuda_sgemm(float *matrix_A_device, float *matrix_B_device, float
 
     __shared__ float A_smem[BM][BK];
     __shared__ float B_smem[BK][BN];
+    const int NUM_PER_THREAD = ROW_FRAG * COL_FRAG;
+    int thread_start = threadIdx.x * NUM_PER_THREAD;
+    int A_smem_y = thread_start / BK, A_smem_x = thread_start % BK;
+    int B_smem_y = thread_start / BN, B_smem_x = thread_start % BN;
 
-    float temp[NUM_PER_THREAD] = {0.0f};
+    float res[ROW_FRAG][COL_FRAG] = {0.0f};
+    float row_frag[ROW_FRAG] = {0.0f};
+    float col_frag[COL_FRAG] = {0.0f};
+
+    const int c_row_start = ((threadIdx.x * COL_FRAG) / BN) * ROW_FRAG;
+    const int c_col_start = (threadIdx.x * COL_FRAG) % BN;
 
     for (int i = 0; i < K; i += BK) {
         // GM ==> SM
         // 将相同内存地址的数据重新解释为一个 float4 对象
-        FETCH_FLOAT4(A_smem[threadIdx.y][threadIdx.x * NUM_PER_THREAD]) =
-            FETCH_FLOAT4(A_ptr_start[threadIdx.y * K + threadIdx.x * NUM_PER_THREAD + i]);
-        FETCH_FLOAT4(B_smem[threadIdx.y][threadIdx.x * NUM_PER_THREAD]) =
-            FETCH_FLOAT4(B_ptr_start[(i + threadIdx.y) * N + threadIdx.x * NUM_PER_THREAD]);
+        FETCH_FLOAT4(A_smem[A_smem_y][A_smem_x]) = FETCH_FLOAT4(A_ptr_start[A_smem_y * K + A_smem_x + i]);
+        FETCH_FLOAT4(B_smem[B_smem_y][B_smem_x]) = FETCH_FLOAT4(B_ptr_start[(i + B_smem_y) * N + B_smem_x]);
 
         __syncthreads();
-
-        for (int j = 0; j < NUM_PER_THREAD; j++) {
-            for (int k = 0; k < BK; k++) {
-                temp[j] += A_smem[threadIdx.y][k] * B_smem[k][threadIdx.x * NUM_PER_THREAD + j];
+        // 寄存器文件只存取一列或者一行 部分元素
+        // 外积执行 矩阵乘法
+        for (int j = 0; j < BK; j++) {
+            // 读取 A_smem 第 j 列元素,写入寄存器
+            for (int j1 = 0; j1 < ROW_FRAG; j1++) row_frag[j1] = A_smem[c_row_start + j1][j];
+            // 读取 B_smem 第 j 行元素,写入寄存器
+            for (int j2 = 0; j2 < COL_FRAG; j2++) col_frag[j2] = B_smem[j][c_col_start + j2];
+            for (int k1 = 0; k1 < ROW_FRAG; k1++) {
+                for (int k2 = 0; k2 < COL_FRAG; k2++) {
+                    res[k1][k2] += row_frag[k1] * col_frag[k2];
+                }
             }
         }
         __syncthreads();
     }
 
-    for (int i = 0; i < NUM_PER_THREAD; i++) {
-        C_ptr_start[threadIdx.y * N + threadIdx.x * NUM_PER_THREAD + i] = temp[i];
+    for (int i = 0; i < ROW_FRAG; i++) {
+        for (int j = 0; j < COL_FRAG; j++) {
+            C_ptr_start[(c_row_start + i) * N + c_col_start + j] = res[i][j];
+        }
     }
 }
 
@@ -86,11 +105,12 @@ int main() {
     const int bm = 32;
     const int bk = 32;
     const int bn = 32;
-    const int BLOCK_X = 8;
-    const int BLOCK_Y = 32;
-    dim3 block(BLOCK_X, BLOCK_Y);
+    const int BLOCK_SIZE = 256;
+    const int ROW_FRAG = 2;
+    const int COL_FRAG = 2;
+    dim3 block(BLOCK_SIZE);
     dim3 grid(n / bn, m / bm);
-    cuda_sgemm<bm, bk, bn, bn / BLOCK_X, m, k, n><<<grid, block>>>(matrix_A_device, matrix_B_device, matrix_C_device);
+    cuda_sgemm<bm, bk, bn, ROW_FRAG, COL_FRAG, m, k, n><<<grid, block>>>(matrix_A_device, matrix_B_device, matrix_C_device);
 
     cudaMemcpy(matrix_C_host_gpu_calc, matrix_C_device, mem_size_C, cudaMemcpyDeviceToHost);
     printFloatArray(matrix_C_host_gpu_calc, 10);

@@ -23,7 +23,7 @@ BASENAME="$(basename "$CU_FILE" .cu)"
 OUTPUT_DIR="./bin"
 INCLUDE_DIR="./include"
 
-CUDA_FLAGS="-arch=sm_60"
+CUDA_FLAGS="-arch=sm_75"
 CXX_FLAGS="-std=c++11"
 EXECUTABLE="$OUTPUT_DIR/$BASENAME"
 
