@@ -1,0 +1,29 @@
+---
+Language: Cpp
+BasedOnStyle: Google
+
+# 设置每行最大字符数为 150
+ColumnLimit: 150
+# 设置缩进宽度为 4 个空格
+IndentWidth: 4
+TabWidth: 4
+
+# 大括号附着在语句末尾，不换行
+BreakBeforeBraces: Attach
+
+# 允许短的 if 语句写在一行
+AllowShortIfStatementsOnASingleLine: true
+# 允许短的循环写在一行
+AllowShortLoopsOnASingleLine: true
+# 允许所有短函数写在一行
+AllowShortFunctionsOnASingleLine: All
+
+# 保护宏定义不被换行
+AlwaysBreakAfterDefinitionReturnType: None
+AlwaysBreakAfterReturnType: None
+
+# 不重新排序头文件
+SortIncludes: false
+
+# 保护宏定义
+IndentPPDirectives: None
