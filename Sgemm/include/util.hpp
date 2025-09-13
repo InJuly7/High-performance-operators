@@ -3,7 +3,6 @@
 
 #include <iostream>
 #include <random>
-#include <vector>
 
 void cpu_sgemm(float* matrix_A_host, float* matrix_B_host, float* matrix_C_host_cpu_calc, const int M, const int N, const int K) {
     for (int m = 0; m < M; m++) {

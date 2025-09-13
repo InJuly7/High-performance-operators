@@ -28,7 +28,7 @@ fi
 OUTPUT_NAME=$(basename "$FILENAME" .cu)
 
 # 编译 CUDA 程序
-nvcc -arch=${ARCH} -G "$FILENAME" -o "$OUTPUT_NAME"
+nvcc -arch=${ARCH} -O3 "$FILENAME" -o "$OUTPUT_NAME"
 if [ $? -ne 0 ]; then
     echo "Compilation failed."
     exit 1

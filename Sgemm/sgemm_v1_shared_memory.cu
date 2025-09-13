@@ -6,24 +6,26 @@
 
 #include "./include/util.hpp"
 
-template <unsigned int BLOCK_SIZE, unsigned int M, unsigned int N, unsigned K>
+// BM = BN = BK
+// 每个 thread 都搬运 K/BK 元素 GMem ==> SMem 
+template <unsigned int M, unsigned K, unsigned int N, unsigned int BM, unsigned BK, unsigned BN>
 __global__ void cuda_sgemm(float *matrix_A_device, float *matrix_B_device, float *matrix_C_device) {
     float *A_ptr_start = matrix_A_device + blockDim.y * blockIdx.y * K;
     float *B_ptr_start = matrix_B_device + blockDim.x * blockIdx.x;
     float *C_ptr_start = matrix_C_device + blockDim.y * blockIdx.y * N + blockDim.x * blockIdx.x;
 
-    __shared__ float A_smem[BLOCK_SIZE][K];
-    __shared__ float B_smem[K][BLOCK_SIZE];
+    __shared__ float A_SMem[BM][K];
+    __shared__ float B_SMem[K][BN];
 
-    for (int i = 0; i < K; i += BLOCK_SIZE) {
-        A_smem[threadIdx.y][threadIdx.x + i] = A_ptr_start[threadIdx.y * K + threadIdx.x + i];
-        B_smem[(threadIdx.y + i)][threadIdx.x] = B_ptr_start[(threadIdx.y + i) * N + threadIdx.x];
+    for (int i = 0; i < K; i += BK) {
+        A_SMem[threadIdx.y][threadIdx.x + i] = A_ptr_start[threadIdx.y * K + threadIdx.x + i];
+        B_SMem[(threadIdx.y + i)][threadIdx.x] = B_ptr_start[(threadIdx.y + i) * N + threadIdx.x];
     }
     __syncthreads();
 
     float temp = 0.0f;
     for (int k = 0; k < K; k++) {
-        temp += A_smem[threadIdx.y][k] * B_smem[k][threadIdx.x];
+        temp += A_SMem[threadIdx.y][k] * B_SMem[k][threadIdx.x];
     }
     C_ptr_start[threadIdx.y * N + threadIdx.x] = temp;
 }
@@ -58,10 +60,12 @@ int main() {
 
     printFloatArray(matrix_C_host_cpu_calc, 10);
 
-    const int BLOCK = 16;
-    dim3 block(BLOCK, BLOCK);
-    dim3 grid((n + BLOCK - 1) / BLOCK, (m + BLOCK - 1) / BLOCK);
-    cuda_sgemm<BLOCK, m, n, k><<<grid, block>>>(matrix_A_device, matrix_B_device, matrix_C_device);
+    const int BM = 16, BN = 16;
+    const int BK = 16;
+    dim3 block(BN, BM);
+    dim3 grid((n + BN - 1) / BN, (m + BM - 1) / BM);
+    cuda_sgemm<m, k, n, BM, BK, BN><<<grid, block>>>(matrix_A_device, matrix_B_device, matrix_C_device);
+    cudaDeviceSynchronize();
     cudaMemcpy(matrix_C_host_gpu_calc, matrix_C_device, mem_size_C, cudaMemcpyDeviceToHost);
     printFloatArray(matrix_C_host_gpu_calc, 10);
 

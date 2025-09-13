@@ -18,35 +18,59 @@ __device__ __forceinline__ float warp_shfl_Reduce(float sum) {
     return sum;
 }
 
+
+// template <unsigned int blockSize, int NUM_PER_THREAD>
+// __global__ void reduce_v7_shuffle(float *vec_A, float *vec_B) {
+//     float *A_start = vec_A + blockIdx.x * blockDim.x * NUM_PER_THREAD;
+//     float *B_start = vec_B + blockIdx.x;
+//     float sum = 0;
+// #pragma unroll 4
+//     for (int iter = 0; iter < NUM_PER_THREAD; iter++) {
+//         sum += A_start[iter * blockSize + threadIdx.x];
+//     }
+//     // WARP_SIZE 32
+//     __shared__ float warpLevelSums[32];
+//     const int laneId = threadIdx.x % 32;
+//     const int warpId = threadIdx.x / 32;
+
+//     sum = warp_shfl_Reduce<blockSize>(sum);
+
+//     // 每个 warp 中第一个 thread 存储 warp sum
+//     if (laneId == 0) warpLevelSums[warpId] = sum;
+//     __syncthreads();
+
+//     // 第一个 warp 再对所有的 warp sum 进行求和
+//     // 对第一个 warp sum 重新赋值
+//     sum = (threadIdx.x < blockDim.x / 32) ? warpLevelSums[laneId] : 0;
+//     if (warpId == 0) sum = warp_shfl_Reduce<blockSize / 32>(sum);
+//     if (threadIdx.x == 0) B_start[0] = sum;
+// }
+
 template <unsigned int blockSize, int NUM_PER_THREAD>
 __global__ void reduce_v7_shuffle(float *vec_A, float *vec_B) {
-    float *A_start = vec_A + blockIdx.x * blockDim.x * NUM_PER_THREAD;
-    float *B_start = vec_B + blockIdx.x;
     float sum = 0;
-#pragma unroll
+
+    // 直接计算，避免存储指针
+    // #pragma unroll 
     for (int iter = 0; iter < NUM_PER_THREAD; iter++) {
-        sum += A_start[iter * blockSize + threadIdx.x];
+        sum += vec_A[blockIdx.x * blockDim.x * NUM_PER_THREAD + iter * blockSize + threadIdx.x];
     }
-    // WARP_SIZE 32
-    static __shared__ float warpLevelSums[32];
-    const int laneId = threadIdx.x % 32;
-    const int warpId = threadIdx.x / 32;
+
+    __shared__ float warpLevelSums[32];
 
     sum = warp_shfl_Reduce<blockSize>(sum);
 
-    // 每个 warp 中第一个 thread 存储 warp sum
-    if (laneId == 0) warpLevelSums[warpId] = sum;
+    if ((threadIdx.x & 31) == 0) warpLevelSums[threadIdx.x >> 5] = sum;
+
     __syncthreads();
 
-    // 第一个 warp 再对所有的 warp sum 进行求和
-    // 对第一个 warp sum 重新赋值
-    sum = (threadIdx.x < blockDim.x / 32) ? warpLevelSums[laneId] : 0;
-    if (warpId == 0) sum = warp_shfl_Reduce<blockSize / 32>(sum);
-    if (threadIdx.x == 0) B_start[0] = sum;
+    if (threadIdx.x < 32) {
+        sum = (threadIdx.x < blockDim.x / 32) ? warpLevelSums[threadIdx.x] : 0;
+        sum = warp_shfl_Reduce<blockSize / 32>(sum);
+    }
+
+    if (threadIdx.x == 0) vec_B[blockIdx.x] = sum;
 }
-
-
-
 
 int main(int agrc, char **argv) {
     const int vector_size = 32 * 1024 * 1024;

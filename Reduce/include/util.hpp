@@ -3,7 +3,6 @@
 
 #include <iostream>
 #include <random>
-#include <vector>
 
 float cpu_reduce(float* h_a, int N) {
     float result = 0;

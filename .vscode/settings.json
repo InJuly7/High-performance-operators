@@ -94,7 +94,15 @@
         "typeinfo": "cpp",
         "valarray": "cpp",
         "variant": "cpp",
-        "__nullptr": "cpp"
+        "__nullptr": "cpp",
+        "__functional_base": "cpp",
+        "__node_handle": "cpp",
+        "__memory": "cpp",
+        "filesystem": "cpp",
+        "locale": "cpp",
+        "__config": "cpp",
+        "queue": "cpp",
+        "stack": "cpp"
     },
     
     "C_Cpp.errorSquiggles": "disabled",

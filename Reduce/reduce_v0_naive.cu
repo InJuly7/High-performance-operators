@@ -60,6 +60,8 @@ int main(int agrc, char **argv) {
     std::cout << "gpu result: " << gpu_result << std::endl;
 
     compare_matrices(cpu_result, gpu_result);
+    free(vector_host);
+    free(vector_host_out);
     cudaFree(vector_device);
     cudaFree(vector_device_out);
     return 0;
