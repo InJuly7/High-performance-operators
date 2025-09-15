@@ -18,7 +18,7 @@ __device__ __forceinline__ float warp_reduce_sum_f32(float val) {
 }
 
 template <unsigned int NUM_THREADS>
-__device__ __forceinline__ float blockReduce_f32(float val) {
+__device__ __forceinline__ float block_reduce_sum_f32(float val) {
     const int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
     const int warpId = threadIdx.x / WARP_SIZE;
     const int laneId = threadIdx.x & (WARP_SIZE - 1);
@@ -47,7 +47,7 @@ __global__ void rms_norm_v0_f32(float *mat_A, float *mat_B, float g, int N, int 
     __shared__ float s_variance;
     float value = mat_A_start[threadIdx.x];
     float variance = value * value;
-    variance = blockReduce_f32<NUM_THREADS>(variance);
+    variance = block_reduce_sum_f32<NUM_THREADS>(variance);
     if (threadIdx.x == 0) s_variance = rsqrtf(variance / (float)K + epsilon);
     __syncthreads();
     mat_B_start[threadIdx.x] = (value * s_variance) * g;

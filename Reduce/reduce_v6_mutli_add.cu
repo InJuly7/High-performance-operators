@@ -9,13 +9,13 @@
 #define THREAD_PER_BLOCK 256
 
 template <unsigned int blockSize>
-__device__ void warpReduce(volatile float *cache, unsigned int tid) {
-    if (blockSize >= 64) cache[tid] += cache[tid + 32];
-    if (blockSize >= 32) cache[tid] += cache[tid + 16];
-    if (blockSize >= 16) cache[tid] += cache[tid + 8];
-    if (blockSize >= 8) cache[tid] += cache[tid + 4];
-    if (blockSize >= 4) cache[tid] += cache[tid + 2];
-    if (blockSize >= 2) cache[tid] += cache[tid + 1];
+__device__ void warpReduce(volatile float *cache) {
+    if (blockSize >= 64) cache[threadIdx.x] += cache[threadIdx.x + 32];
+    if (blockSize >= 32) cache[threadIdx.x] += cache[threadIdx.x + 16];
+    if (blockSize >= 16) cache[threadIdx.x] += cache[threadIdx.x + 8];
+    if (blockSize >= 8) cache[threadIdx.x] += cache[threadIdx.x + 4];
+    if (blockSize >= 4) cache[threadIdx.x] += cache[threadIdx.x + 2];
+    if (blockSize >= 2) cache[threadIdx.x] += cache[threadIdx.x + 1];
 }
 
 template <unsigned int blockSize, int NUM_PER_THREAD>
