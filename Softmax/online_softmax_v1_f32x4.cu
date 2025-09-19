@@ -6,7 +6,7 @@
 #include <cuda_runtime.h>
 #include <stdio.h>
 #include <iostream>
-#include <vector>
+
 #include <random>
 #include <string>
 #include "./include/util.hpp"
