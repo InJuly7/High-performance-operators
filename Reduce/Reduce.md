@@ -181,17 +181,12 @@ $$\text{SMem}[\text{index}] \leftarrow \text{SMem}[\text{index}] + \text{SMem}[\
 
 **迭代3 (s=4) - 8-way Bank Conflict**
 
-| 线程组 | 访问的Bank ID | 冲突程度 |
-|--------|---------------|----------|
-| T0,T8,T16,T24 | Bank 0 | 4-way conflict |
-| T1,T9,T17,T25 | Bank 4 | 4-way conflict |
-| T2,T10,T18,T26 | Bank 8 | 4-way conflict |
-| T3,T11,T19,T27 | Bank 12 | 4-way conflict |
-| T4,T12,T20,T28 | Bank 16 | 4-way conflict |
-| T5,T13,T21,T29 | Bank 20 | 4-way conflict |
-| T6,T14,T22,T30 | Bank 24 | 4-way conflict |
-| T7,T15,T23,T31 | Bank 28 | 4-way conflict |
-
+| 线程组 | 访问的Bank ID |访问地址               | 冲突程度 |
+|--------|---------------|----------|----------|
+| T0,T4,T8,T12,T16,T20,T24,T28 | Bank 0 | SMem[0], SMem[4]|8-way conflict |
+| T1,T5,T9,T13,T17,T21,T25,T29 | Bank 8 | SMem[8], SMem[12]|8-way conflict |
+| T2,T6,T10,T14,T18,T22,T26,T30 | Bank 16 | SMem[16], SMem[20]|8-way conflict |
+| T3,T7,T11,T15,T19,T23,T27,T31 | Bank 24 | SMem[24], SMem[28]|8-way conflict |
 **迭代4及以后的Bank Conflict**
 
 | 迭代  | 步长s | 活跃线程数 | Bank Conflict程度 | 原因      |

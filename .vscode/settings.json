@@ -102,7 +102,20 @@
         "locale": "cpp",
         "__config": "cpp",
         "queue": "cpp",
-        "stack": "cpp"
+        "stack": "cpp",
+        "__locale": "cpp",
+        "cassert": "cpp",
+        "ccomplex": "cpp",
+        "cerrno": "cpp",
+        "cfloat": "cpp",
+        "ciso646": "cpp",
+        "climits": "cpp",
+        "cstdalign": "cpp",
+        "cstdbool": "cpp",
+        "ctgmath": "cpp",
+        "ios": "cpp",
+        "version": "cpp",
+        "__verbose_abort": "cpp"
     },
     
     "C_Cpp.errorSquiggles": "disabled",

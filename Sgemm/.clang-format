@@ -1,8 +1,0 @@
-BasedOnStyle: Google
-ColumnLimit: 150
-IndentWidth: 4
-UseTab: Never
-BreakBeforeBraces: Attach
-AllowShortIfStatementsOnASingleLine: true
-AllowShortLoopsOnASingleLine: true
-AllowShortFunctionsOnASingleLine: All
