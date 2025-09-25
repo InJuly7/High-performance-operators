@@ -33,7 +33,6 @@ void cpu_qk_matmul(float *Q, float *K, float *S, int H, int S1, int S2, int dk) 
 
 void cpu_safe_softmax(float *S, float *P, const int H, const int S1, const int S2) {
     for (int h = 0; h < H; ++h) {
-
         // S, P的头偏移
         int P_head_offset = h * S1 * S2;
         int S_head_offset = h * S1 * S2;
@@ -110,12 +109,14 @@ void cpu_multihead_attention(float *Q, float *K, float *V, float *O, int H, int 
 
         for (int i = 0; i < S1; ++i) {
             // 计算 Q[i] @ K.T
+            // attn-mask
             for (int j = 0; j < S2; ++j) {
                 float temp = 0.0f;
                 for (int k = 0; k < dk; ++k) {
                     temp += Q_h[i * dk + k] * K_h[j * dk + k];
                 }
-                S[j] = temp * rsqrt_dk;
+                temp *= rsqrt_dk;
+                S[j] = (j <= i) ? temp : -INFINITY;
             }
 
             // Safe softmax

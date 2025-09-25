@@ -36,30 +36,33 @@ __global__ void flash_attn_v1(float *Q, float *K, float *V, float *l, float *m, 
         __syncthreads();
 
         for (int tr = 0; tr < Tr; tr++) {
-            int row_idx = tr * Br + threadIdx.x;
-            float row_m_prev = m[row_idx];
-            float row_l_prev = l[row_idx];
+            int row_Q = tr * Br + threadIdx.x;
+            float row_m_prev = m[row_Q];
+            float row_l_prev = l[row_Q];
             // Load GMemQ To SMemQ
             for (int i = 0; i < dk; i += 4) {
-                FLOAT4(SMem_Q[threadIdx.x * dk + i]) = FLOAT4(Q[row_idx * dk + i]);
+                FLOAT4(SMem_Q[threadIdx.x * dk + i]) = FLOAT4(Q[row_Q * dk + i]);
             }
 
             // Q @ K^T
             float row_m = -FLT_MAX;
-            float row_l = 0.0f;
             for (int bc = 0; bc < Bc; bc++) {
                 float temp = 0.0f;
                 for (int i = 0; i < dk; i++) {
                     temp += SMem_Q[threadIdx.x * dk + i] * SMem_K[bc * dk + i];
                 }
-                SMem_S[threadIdx.x * Bc + bc] = temp * scale;
+                temp *= scale;
+                // causal mask
+                SMem_S[threadIdx.x * Bc + bc] = (tc * Bc + bc <= row_Q) ? temp : -FLT_MAX;
                 // compute row_max
                 row_m = fmax(row_m, temp);
             }
 
             // compute row_l
+            float row_l = 0.0f;
             for (int bc = 0; bc < Bc; bc++) {
-                SMem_S[threadIdx.x * Bc + bc] = __expf(SMem_S[threadIdx.x * Bc + bc] - row_m);
+                // causal mask
+                SMem_S[threadIdx.x * Bc + bc] = (tc * Bc + bc <= row_Q) ? __expf(SMem_S[threadIdx.x * Bc + bc] - row_m) : 0.0f;
                 row_l += SMem_S[threadIdx.x * Bc + bc];
             }
 
@@ -72,12 +75,12 @@ __global__ void flash_attn_v1(float *Q, float *K, float *V, float *l, float *m, 
                 for (int bc = 0; bc < Bc; bc++) {
                     pv += SMem_S[threadIdx.x * Bc + bc] * SMem_V[bc * dk + i];
                 }
-                O[row_idx * dk + i] =
-                    (O[row_idx * dk + i]) * __expf(row_m_prev - row_m_new) * (row_l_prev / row_l_new) + (pv * __expf(row_m - row_m_new) / row_l_new);
+                O[row_Q * dk + i] =
+                    (O[row_Q * dk + i]) * __expf(row_m_prev - row_m_new) * (row_l_prev / row_l_new) + (pv * __expf(row_m - row_m_new) / row_l_new);
             }
 
-            m[row_idx] = row_m_new;
-            l[row_idx] = row_l_new;
+            m[row_Q] = row_m_new;
+            l[row_Q] = row_l_new;
         }
         __syncthreads();
     }

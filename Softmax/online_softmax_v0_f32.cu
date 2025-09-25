@@ -23,11 +23,9 @@ __device__ __forceinline__ MD warp_reduce_md(MD val) {
         other.m = __shfl_down_sync(0xffffffff, val.m, delta);
         other.d = __shfl_down_sync(0xffffffff, val.d, delta);
 
-        MD bigger_MD = val.m >= other.m ? val : other;
-        MD smaller_MD = val.m < other.m ? val : other;
-
-        val.m = bigger_MD.m;
-        val.d = bigger_MD.d + smaller_MD.d * __expf(smaller_MD.m - bigger_MD.m);
+        float m = fmax(val.m,other.m);
+        val.m = m;
+        val.d = __expf(val.m - m) * val.d + __expf(other.m - m) * other.d;
     }
     return val;
 }
