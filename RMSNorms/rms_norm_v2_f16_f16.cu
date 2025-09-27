@@ -66,14 +66,12 @@ int main() {
     const int K = 1024;
     float g = 0.35f;
 
-    // CPU 内存分配 - 都使用 half_t
     half_t *mat_A = (half_t *)malloc(N * K * sizeof(half_t));
     half_t *mat_B_cpu_calc = (half_t *)malloc(N * K * sizeof(half_t));
     half_t *mat_B_gpu_calc = (half_t *)malloc(N * K * sizeof(half_t));
 
     generateRandomHalfArray(mat_A, N * K);
 
-    // GPU 内存分配 - 都使用 half
     half *mat_A_device = NULL;
     half *mat_B_device = NULL;
     cudaMalloc((void **)&mat_A_device, N * K * sizeof(half_t));
