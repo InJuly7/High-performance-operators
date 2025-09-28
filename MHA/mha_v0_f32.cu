@@ -175,13 +175,12 @@ int main() {
     cudaDeviceSynchronize();
     cudaMemcpy(O_gpu_cal, d_O, H * S1 * dk * sizeof(float), cudaMemcpyDeviceToHost);
 
-    // float *S_cpu_cal = (float *)malloc(H * S1 * S2 * sizeof(float));
-    // float *P_cpu_cal = (float *)malloc(H * S1 * S2 * sizeof(float));
-    // cpu_qk_matmul(Q, K, S_cpu_cal, H, S1, S2, dk);
-    // cpu_safe_softmax(S_cpu_cal, P_cpu_cal, H, S1, S2);
-    // cpu_pv_matmul(P_cpu_cal, V, O_cpu_cal, H, S1, S2, dk);
+    float *S_cpu_cal = (float *)malloc(H * S1 * S2 * sizeof(float));
+    float *P_cpu_cal = (float *)malloc(H * S1 * S2 * sizeof(float));
+    cpu_qk_matmul(Q, K, S_cpu_cal, H, S1, S2, dk);
+    cpu_safe_softmax(S_cpu_cal, P_cpu_cal, H, S1, S2);
+    cpu_pv_matmul(P_cpu_cal, V, O_cpu_cal, H, S1, S2, dk);
 
-    cpu_multihead_attention(Q, K, V, O_cpu_cal, H, S1, S2, dk);
     printFloatArray(O_cpu_cal, 10);
     printFloatArray(O_gpu_cal, 10);
     compare_matrices(H, S1, dk, O_cpu_cal, O_gpu_cal);
@@ -191,6 +190,9 @@ int main() {
     free(V);
     free(O_gpu_cal);
     free(O_cpu_cal);
+    free(S_cpu_cal);
+    free(P_cpu_cal);
+
 
     cudaFree(d_Q);
     cudaFree(d_K);

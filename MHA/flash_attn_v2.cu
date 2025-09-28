@@ -83,8 +83,8 @@ __global__ void flash_attn_v2(float *Q, float *K, float *V, float *l, float *O, 
 }
 
 int main() {
-    const int S1 = 1024;
-    const int S2 = 1024;
+    const int S1 = 2048;
+    const int S2 = 2048;
     const int dk = 64;
     const int H = 12;
     const int Bc = 32;
@@ -122,7 +122,10 @@ int main() {
     // 每个 block 处理 [Br,dk] 个元素
     dim3 grid(H, Tr);
     dim3 block(Br);
-    flash_attn_v2<sram_size><<<grid, block>>>(d_Q, d_K, d_V, d_l, d_O, S1, dk, Tc, Tr, Bc, Br);
+    for(int iter = 0; iter < 5; iter++) {
+        Perf("flash_attn_v2");
+        flash_attn_v2<sram_size><<<grid, block>>>(d_Q, d_K, d_V, d_l, d_O, S1, dk, Tc, Tr, Bc, Br);
+    }
     cudaDeviceSynchronize();
     cudaMemcpy(O_gpu_cal, d_O, H * S1 * dk * sizeof(float), cudaMemcpyDeviceToHost);
 

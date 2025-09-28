@@ -50,12 +50,13 @@ int main() {
     cudaMemcpy(mat_A_device, mat_A, M * K * sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(mat_B_device, mat_B, K * N * sizeof(float), cudaMemcpyHostToDevice);
 
-    cpu_sgemm(mat_A, mat_B, mat_C_cpu_calc, M, K, N);
+    // cpu_sgemm(mat_A, mat_B, mat_C_cpu_calc, M, K, N);
 
     const int BM = 32, BK = 32, BN = 32;
     dim3 block(BN, BM);
     dim3 grid((N + BN - 1) / BN, (M + BM - 1) / BM);
     for (int i = 0; i < 5; i++) {
+        Perf("sgemm_v2_sliced_k_f32");
         sgemm_v2_sliced_k_f32<BM, BK, BN><<<grid, block>>>(mat_A_device, mat_B_device, mat_C_device, M, K, N);
         cudaDeviceSynchronize();
     }
