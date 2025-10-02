@@ -4,7 +4,7 @@
 #include <iostream>
 #include <random>
 #include <math.h>
-#include "/home/song/program/High-performance-operators/include/half.hpp"
+#include "../../include/half.hpp"
 
 
 using half_t = half_float::half;
@@ -80,45 +80,39 @@ void printHalfArray(half_t* arr, int N) {
 }
 
 void compare_matrices(int N, int K, float* cpu_res, float* gpu_res) {
-    int flag = 0;
     float epsilon = 1e-5;
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < K; j++) {
             int idx = i * K + j;
             if (abs(cpu_res[idx] - gpu_res[idx])/(cpu_res[idx] + epsilon) > 1e-3f) {
                 printf("error: (%d,%d) : cpu_res : %f gpu_res = %f\n", i, j, cpu_res[i * K + j], gpu_res[i * K + j]);
-                flag = 1;
                 return;
             }
         }
     }
-    if (flag == 0) {
-        printf("cpu_res == gpu_res\n");
-    }
+
+    printf("cpu_res == gpu_res\n");
 }
 
-void compare_matrices(int N, int K, half_t* cpu_res, half_t* gpu_res) {
-    // using namespace half_float;
-    int flag = 0;
+void compare_matrices(int N1, int N2, half_t* cpu_res, half_t* gpu_res) {
     // 适合half精度的epsilon
-    half_t eps = (half_t)1e-4f;
+    half_t epsilon = (half_t)1e-4f;
     half_t tolerance(1e-2f);
-    for (int i = 0; i < N; i++) {
-        for (int j = 0; j < K; j++) {
-            int idx = i * K + j;
+    for (int i = 0; i < N1; i++) {
+        for (int j = 0; j < N2; j++) {
+            int idx = i * N2 + j;
+            // 计算绝对误差
+            half_t abso_error = fabs(cpu_res[idx] - gpu_res[idx]);
             // 计算相对误差
-            half_t relative_error = fabs(cpu_res[idx] - gpu_res[idx]);
-            if (relative_error > tolerance) {
-                std::cout << "error: (" << i << "," << j << ") : cpu_res : " << cpu_res[idx] << "," << gpu_res[idx] << std::endl;
-                flag = 1;
+            half_t rela_error = abso_error / (fmax(fabs(cpu_res[idx]), fabs(gpu_res[idx])) + epsilon);
+            if (abso_error > tolerance && rela_error > tolerance) {
+                std::cout << "error: (" << i << "," << j << ") : cpu_res : " << cpu_res[idx] << " " << gpu_res[idx] << std::endl;
                 return;
             }
         }
     }
 
-    if (flag == 0) {
-        printf("cpu_res == gpu_res \n");
-    }
+    printf("cpu_res == gpu_res \n");
 }
 
 void cpu_rms_norm(float* mat_A, float* mat_B_cpu_calc, const float g, const int N, const int K) {
@@ -136,10 +130,9 @@ void cpu_rms_norm(float* mat_A, float* mat_B_cpu_calc, const float g, const int 
 }
 
 void cpu_rms_norm(half_t* mat_A, half_t* mat_B_cpu_calc, const float g, const int N, const int K) {
-    using namespace half_float;
     const half_t epsilon = half_t(1e-5f);
-    const half_t K_ = half_cast<half_t, int>(K);
-    const half_t g_ = half_cast<half_t, float>(g);
+    const half_t K_ = half_float::half_cast<half_t, int>(K);
+    const half_t g_ = half_float::half_cast<half_t, float>(g);
 
     for (int i = 0; i < N; i++) {
         half_t val = half_t(0.0f);
@@ -150,7 +143,7 @@ void cpu_rms_norm(half_t* mat_A, half_t* mat_B_cpu_calc, const float g, const in
         }
 
         // 计算 RMS normalization 因子
-        val = rsqrt(val / K_ + epsilon);
+        val = half_float::rsqrt(val / K_ + epsilon);
 
         // 应用 normalization 和缩放
         for (int j = 0; j < K; j++) {

@@ -4,6 +4,32 @@
 #include <iostream>
 #include <random>
 
+class Perf
+{
+public:
+    Perf(const std::string &name)
+    {
+        m_name = name;
+        cudaEventCreate(&m_start);
+        cudaEventCreate(&m_end);
+        cudaEventRecord(m_start);
+        cudaEventSynchronize(m_start);
+    }
+
+    ~Perf()
+    {
+        cudaEventRecord(m_end);
+        cudaEventSynchronize(m_end);
+        float elapsed_time = 0.0;
+        cudaEventElapsedTime(&elapsed_time, m_start, m_end);
+        std::cout << m_name << " elapse: " << elapsed_time << " ms" << std::endl;
+    }
+
+private:
+    std::string m_name;
+    cudaEvent_t m_start, m_end;
+}; // class Perf
+
 void cpu_sgemm(float* mat_A, float* mat_B, float* mat_C_cpu_cal, const int M, const int K, const int N) {
     for (int m = 0; m < M; m++) {
         for (int n = 0; n < N; n++) {

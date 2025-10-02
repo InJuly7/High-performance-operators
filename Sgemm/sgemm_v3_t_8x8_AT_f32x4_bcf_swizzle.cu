@@ -106,8 +106,9 @@ int main() {
     dim3 block(CEIL_DIV((BN * BM), (TN * TM)));
 
     for (int i = 0; i < 5; i++) {
+        Perf("sgemm_v3_t_8x8_AT_f32x4_bcf_swizzle");
         sgemm_v3_t_8x8_AT_f32x4_bcf_swizzle<BM, BK, BN, TM, TN><<<grid, block>>>(mat_A_device, mat_B_device, mat_C_device, M, K, N);
-        cudaDeviceSynchronize();
+        // cudaDeviceSynchronize();
     }
     cudaMemcpy(mat_C_gpu_calc, mat_C_device, M * N * sizeof(float), cudaMemcpyDeviceToHost);
 

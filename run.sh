@@ -28,7 +28,7 @@ fi
 OUTPUT_NAME=$(basename "$FILENAME" .cu)
 
 # 编译 CUDA 程序
-nvcc -arch=${ARCH} -O2 "$FILENAME" -o "$OUTPUT_NAME"
+nvcc -arch=${ARCH} -lcublas "$FILENAME" -o "$OUTPUT_NAME"
 if [ $? -ne 0 ]; then
     echo "Compilation failed."
     exit 1
@@ -36,11 +36,10 @@ fi
 echo "Compilation successful: $FILENAME -> $OUTPUT_NAME"
 
 # # 根据架构执行不同的命令
-# if [[ "$ARCH" == "sm_61" ]]; then
-#     ./"$OUTPUT_NAME"
-#     rm "$OUTPUT_NAME"
-# elif [[ "$ARCH" == "sm_75" ]]; then
-#     ncu -o kernel_profile --set full -f ./"$OUTPUT_NAME"
+# if [[ "$ARCH" == "sm_86" ]]; then
+#         echo "Starting NCU profiling..."
+#         sudo ncu -o "${OUTPUT_NAME}" --set full -f ./"$OUTPUT_NAME"
+#         sudo ncu -o "${OUTPUT_NAME}-rf" --set roofline -f ./"$OUTPUT_NAME"
 # else
-#     echo "Unsupported architecture for additional actions."
+#     echo "Skipping NCU: ARCH is not sm_86 (current: $ARCH)"
 # fi
