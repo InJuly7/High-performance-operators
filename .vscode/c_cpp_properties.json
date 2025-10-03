@@ -6,6 +6,7 @@
                 "${workspaceFolder}/**",
                 "/usr/local/cuda/include/",
                 "/usr/local/cuda/targets/x86_64-linux/include/",
+                "/usr/local/cuda/targets/aarch64-linux/include/",
                 "/usr/local/include/"
             ],
             "defines": [],

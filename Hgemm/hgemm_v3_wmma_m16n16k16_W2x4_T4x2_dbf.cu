@@ -23,11 +23,11 @@ using half_t = half_float::half;
 #define CP_ASYNC_CA(dst, src, bytes) asm volatile("cp.async.ca.shared.global.L2::128B [%0], [%1], %2;\n" ::"r"(dst), "l"(src), "n"(bytes))
 #define CP_ASYNC_CG(dst, src, bytes) asm volatile("cp.async.cg.shared.global.L2::128B [%0], [%1], %2;\n" ::"r"(dst), "l"(src), "n"(bytes))
 
-template <unsigned int WM, unsigned int WK, unsigned int WN, unsigned int WARP_TILE_M, unsigned int WARP_TILE_N, unsigned int TM, unsigned int TN>
-__global__ void hgemm_v2_wmma_m16n16k16_W2x4_64x32(half *A, half *B, half *C, const int M, const int K, const int N) {
-    const int BM = WM * WARP_TILE_M * TM;
+template <unsigned int WM, unsigned int WK, unsigned int WN, unsigned int WARP_M, unsigned int WARP_N, unsigned int TM, unsigned int TN>
+__global__ void hgemm_v3_wmma_m16n16k16_W2x4_T4x2_dbf(half *A, half *B, half *C, const int M, const int K, const int N) {
+    const int BM = WM * WARP_M * TM;
     const int BK = WK;
-    const int BN = WN * WARP_TILE_N * TN;
+    const int BN = WN * WARP_N * TN;
 
     A += blockIdx.y * BM * K;
     B += blockIdx.x * BN;
@@ -160,18 +160,18 @@ int main() {
     const int WK = 16;
     const int WN = 16;
     // WARP 2x4
-    const int WARP_TILE_M = 2;
-    const int WARP_TILE_N = 4;
+    const int WARP_M = 2;
+    const int WARP_N = 4;
     // Tile M 方向 4块, N 方向 2块
     const int TM = 4;
     const int TN = 2;
 
-    dim3 grid(CEIL_DIV(N, WN * TN * WARP_TILE_N), CEIL_DIV(M, WM * TM * WARP_TILE_M));
+    dim3 grid(CEIL_DIV(N, WN * TN * WARP_N), CEIL_DIV(M, WM * TM * WARP_M));
     dim3 block(256);
 
     for (int i = 0; i < 5; i++) {
-        Perf("hgemm_v2_wmma_m16n16k16_W2x4_64x32");
-        hgemm_v2_wmma_m16n16k16_W2x4_64x32<WM, WK, WN, WARP_TILE_M, WARP_TILE_N, TM, TN>
+        Perf("hgemm_v3_wmma_m16n16k16_W2x4_T4x2_dbf");
+        hgemm_v3_wmma_m16n16k16_W2x4_T4x2_dbf<WM, WK, WN, WARP_M, WARP_N, TM, TN>
             <<<grid, block>>>(mat_A_device, mat_B_device, mat_C_wmma, M, K, N);
     }
     cudaMemcpy(mat_C_wmma_calc, mat_C_wmma, M * N * sizeof(half_t), cudaMemcpyDeviceToHost);
