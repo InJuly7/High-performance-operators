@@ -36,8 +36,8 @@ fi
 echo "Compilation successful: $FILENAME -> $OUTPUT_NAME"
 
 # 根据架构执行不同的命令
-if [[ "$ARCH" == "sm_86" ]]; then
-        echo "Starting NCU profiling..."
-        sudo ncu -o "${OUTPUT_NAME}" --set full -f ./"$OUTPUT_NAME"
-        # sudo ncu -o "${OUTPUT_NAME}-rf" --set roofline -f ./"$OUTPUT_NAME"
-fi
+# if [[ "$ARCH" == "sm_86" ]]; then
+#         echo "Starting NCU profiling..."
+#         sudo ncu -o "${OUTPUT_NAME}" --set full -f ./"$OUTPUT_NAME"
+#         # sudo ncu -o "${OUTPUT_NAME}-rf" --set roofline -f ./"$OUTPUT_NAME"
+# fi

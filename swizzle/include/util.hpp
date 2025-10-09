@@ -2,17 +2,15 @@
 #define UTIL_HPP
 
 #include <iostream>
-#include <fstream>
 #include <random>
+#include <fstream>
 #include "../../include/half.hpp"
 
 using half_t = half_float::half;
 
-class Perf
-{
-public:
-    Perf(const std::string &name)
-    {
+class Perf {
+   public:
+    Perf(const std::string& name) {
         m_name = name;
         cudaEventCreate(&m_start);
         cudaEventCreate(&m_end);
@@ -20,8 +18,7 @@ public:
         cudaEventSynchronize(m_start);
     }
 
-    ~Perf()
-    {
+    ~Perf() {
         cudaEventRecord(m_end);
         cudaEventSynchronize(m_end);
         float elapsed_time = 0.0;
@@ -29,10 +26,10 @@ public:
         std::cout << m_name << " elapse: " << elapsed_time << " ms" << std::endl;
     }
 
-private:
+   private:
     std::string m_name;
     cudaEvent_t m_start, m_end;
-}; // class Perf
+};  // class Perf
 
 void generateRandomHalfArray(half_t* arr, int N, bool is_write = false, const char* filename = "") {
     using namespace half_float;
@@ -46,7 +43,7 @@ void generateRandomHalfArray(half_t* arr, int N, bool is_write = false, const ch
         arr[i] = half_float::half_cast<half_t, float>(dis(gen));
     }
 
-    if(is_write) {
+    if (is_write) {
         std::ofstream out(filename);
         if (!out.is_open()) {
             std::cout << "filename is empty" << std::endl;
@@ -56,7 +53,7 @@ void generateRandomHalfArray(half_t* arr, int N, bool is_write = false, const ch
             out << arr[i] << " ";
             if ((i + 1) % 16 == 0) out << std::endl;
         }
-        out.close();        
+        out.close();
     }
 }
 

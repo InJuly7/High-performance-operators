@@ -94,7 +94,7 @@ __global__ void hgemm_v0_mma_m16n8k16_W1x1_T1x1(half *A, half *B, half *C, const
         // x4.m8n8
         uint32_t LD_SMemA_Ptr = __cvta_generic_to_shared(&SMem_A[laneId & 15][(laneId / 16) * 8]);      
         // x2.trans.m8n8
-        uint32_t LD_SMemB_Ptr = __cvta_generic_to_shared(&SMem_B[laneId & 15][0]);
+        uint32_t LD_SMemB_Ptr = __cvta_generic_to_shared(&SMem_B[laneId & 15][(laneId / 16) * 8]);
         LDMATRIX_X4(RA[0], RA[1], RA[2], RA[3], LD_SMemA_Ptr); // bfc 4 : Req 1
         LDMATRIX_X2_T(RB[0], RB[1], LD_SMemB_Ptr); // No bfc : Req 1
 
