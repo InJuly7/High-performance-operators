@@ -53,15 +53,12 @@ using half_t = half_float::half;
         : "=r"(RD0), "=r"(RD1)                                                  \
         : "r"(RA0), "r"(RA1), "r"(RA2), "r"(RA3), "r"(RB0), "r"(RB1), "r"(RC0), "r"(RC1))
 
-/**
- * \tparam S: SShift, right shift the addr for swizzling
- * \tparam B: BShift, bits to be swizzled
- * \tparam M: MBase, bits keep the same
- */
-template <uint32_t S, uint32_t B, uint32_t M>
-__device__ __forceinline__ uint32_t swizzle(uint32_t addr) {
-    constexpr auto Bmask = ((1 << B) - 1) << M;
-    return ((addr >> S) & Bmask) ^ addr;
+template <uint32_t shift, uint32_t xor_bits, uint32_t chunk_bits>
+__device__ __forceinline__ uint32_t swizzle(const uint32_t offset, const uint32_t SMem_col) {
+    const int BMask = ((1 << xor_bits) - 1) << chunk_bits;
+    const int swizzle_offset = ((offset >> shift) & BMask) ^ offset;
+    const int swizzle_col = (swizzle_offset & (SMem_col - 1));
+    return swizzle_col;
 }
 
 template <unsigned int MMA_M, unsigned int MMA_K, unsigned int MMA_N>
@@ -90,19 +87,38 @@ __global__ void hgemmT_v0_mma_m16n8k16_W1x1_T1x1(half *A, half *B, half *C, cons
     int LD_GMemB_Row = (threadIdx.x * 4) / 16;
     int LD_GMemB_Col = (threadIdx.x * 4) & 15;
 
-    for(int k = 0; k < K; k += BK) {
+    // fp16 SMem[16][16]
+    const int row_bits = 4;
+    const int col_bits = 4;
+    const int chunk_col_bits = 1;
+    const int chunk_bits = 3; // M
+    const int stride_bits = 3; // half 8
+    const int mma_row_bits = 3; // 8 rows
+    const int bank_bits = 5; // 32 banks
+    // stride_bits = 4 ==> 2, stride_bits = 3 ==> 1
+    // https://zhuanlan.zhihu.com/p/21142007017
+    const int xor_bits = (stride_bits >= 5 ) ? 3 : stride_bits + mma_row_bits - bank_bits;
+    const int shift = (stride_bits >= 5) ? stride_bits - 2 : 3;  // S
+
+    for (int k = 0; k < K; k += BK) {
         // Load GMemA/B  Store SMemA/B
-        HALF8(SMem_A[LD_GMemA_Row][LD_GMemA_Col]) = HALF8(A[LD_GMemA_Row * K + LD_GMemA_Col]);
+        int offset = LD_GMemA_Row * BK + LD_GMemA_Col;
+        // swizzle<3,1,3>
+        int swizzle_col = swizzle<shift, xor_bits, chunk_bits>(offset, BK);
+        HALF8(SMem_A[LD_GMemA_Row][swizzle_col]) = HALF8(A[LD_GMemA_Row * K + LD_GMemA_Col]);
         HALF4(SMem_B[LD_GMemB_Row][LD_GMemB_Col]) = HALF4(B[LD_GMemB_Row * K + LD_GMemB_Col]);
         A += BK;
         B += BK;
+        // cudaLog("row : %d, swizzle_col : %d\n",LD_GMemA_Row, swizzle_col);
         __syncthreads();
     
         // Load SMemA/B  Store RegA/B
         // x4.m8n8
         int RegA_Ptr_Row = laneId & 15;
         int RegA_Ptr_Col = (laneId / 16) * 8;
-        uint32_t LD_SMemA_Ptr = __cvta_generic_to_shared(&SMem_A[RegA_Ptr_Row][RegA_Ptr_Col]);
+        offset = RegA_Ptr_Row * BK + RegA_Ptr_Col;
+        swizzle_col = swizzle<shift, xor_bits, chunk_bits>(offset, BK);
+        uint32_t LD_SMemA_Ptr = __cvta_generic_to_shared(&SMem_A[RegA_Ptr_Row][swizzle_col]);
 
         // x2.m8n8
         int RegB_Ptr_Row = laneId & 7;

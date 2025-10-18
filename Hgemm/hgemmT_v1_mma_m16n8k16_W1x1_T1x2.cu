@@ -122,9 +122,9 @@ __global__ void hgemmT_v1_mma_m16n8k16_W1x1_T1x2(half *A, half *B, half *C, cons
 }
 
 int main() {
-    const int M = 1024;
-    const int K = 1024;
-    const int N = 1024;
+    const int M = 16;
+    const int K = 16;
+    const int N = 16;
 
     half_t *A = (half_t *)malloc(M * K * sizeof(half_t));
     half_t *B = (half_t *)malloc(N * K * sizeof(half_t));
