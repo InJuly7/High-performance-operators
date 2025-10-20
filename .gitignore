@@ -1,5 +1,32 @@
 # 可执行文件
 *.out
 
-# NCU 文件
-*.ncu-rep
+# NSYS/NCU 文件
+*.nsys*
+*.ncu*
+
+# 文件夹
+build
+outupt.
+tmp
+
+# 权重文件
+*.bin
+*.onnx
+*.pt
+*.pth
+*.whl
+*.engine
+
+# 动态链接库
+*.so
+*.a
+*.dylib
+*.dll
+*.lib
+
+# 其他
+*.sqlite*
+__pycache__
+
+
