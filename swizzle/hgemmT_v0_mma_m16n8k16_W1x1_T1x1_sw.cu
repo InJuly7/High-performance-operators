@@ -62,7 +62,7 @@ __device__ __forceinline__ uint32_t swizzle(const uint32_t offset, const uint32_
 }
 
 template <unsigned int MMA_M, unsigned int MMA_K, unsigned int MMA_N>
-__global__ void hgemmT_v0_mma_m16n8k16_W1x1_T1x1(half *A, half *B, half *C, const int M, const int K, const int N) {
+__global__ void hgemmT_v0_mma_m16n8k16_W1x1_T1x1_sw(half *A, half *B, half *C, const int M, const int K, const int N) {
     const int BM = MMA_M;
     const int BK = MMA_K;
     const int BN = MMA_N;
@@ -88,28 +88,32 @@ __global__ void hgemmT_v0_mma_m16n8k16_W1x1_T1x1(half *A, half *B, half *C, cons
     int LD_GMemB_Col = (threadIdx.x * 4) & 15;
 
     // fp16 SMem[16][16]
-    const int row_bits = 4;
-    const int col_bits = 4;
-    const int chunk_col_bits = 1;
-    const int chunk_bits = 3; // M
-    const int stride_bits = 3; // half 8
-    const int mma_row_bits = 3; // 8 rows
-    const int bank_bits = 5; // 32 banks
-    // stride_bits = 4 ==> 2, stride_bits = 3 ==> 1
-    // https://zhuanlan.zhihu.com/p/21142007017
-    const int xor_bits = (stride_bits >= 5 ) ? 3 : stride_bits + mma_row_bits - bank_bits;
-    const int shift = (stride_bits >= 5) ? stride_bits - 2 : 3;  // S
+    // const int row_bits = 4;
+    // const int col_bits = 4;
+    // const int chunk_col_bits = 1;
+    // const int chunk_bits = 3; // M
+    // const int stride_bits = 3; // half 8
+    // const int mma_row_bits = 3; // 8 rows
+    // const int bank_bits = 5; // 32 banks
+    // // stride_bits = 4 ==> 2, stride_bits = 3 ==> 1
+    // // https://zhuanlan.zhihu.com/p/21142007017
+    // const int xor_bits = (stride_bits >= 5 ) ? 3 : stride_bits + mma_row_bits - bank_bits;
+    // const int shift = (stride_bits >= 5) ? stride_bits - 2 : 3;  // S
 
     for (int k = 0; k < K; k += BK) {
         // Load GMemA/B  Store SMemA/B
         int offset = LD_GMemA_Row * BK + LD_GMemA_Col;
         // swizzle<3,1,3>
-        int swizzle_col = swizzle<shift, xor_bits, chunk_bits>(offset, BK);
+        int swizzle_col = swizzle<3, 1, 3>(offset, BK);
         HALF8(SMem_A[LD_GMemA_Row][swizzle_col]) = HALF8(A[LD_GMemA_Row * K + LD_GMemA_Col]);
-        HALF4(SMem_B[LD_GMemB_Row][LD_GMemB_Col]) = HALF4(B[LD_GMemB_Row * K + LD_GMemB_Col]);
+        // cudaLog("row : %d, swizzle_col : %d\n",LD_GMemA_Row, swizzle_col);
+
+
+        offset = LD_GMemB_Row * BK + LD_GMemB_Col;
+        swizzle_col = swizzle<3, 1, 3>(offset, BK);
+        HALF4(SMem_B[LD_GMemB_Row][swizzle_col]) = HALF4(B[LD_GMemB_Row * K + LD_GMemB_Col]);
         A += BK;
         B += BK;
-        // cudaLog("row : %d, swizzle_col : %d\n",LD_GMemA_Row, swizzle_col);
         __syncthreads();
     
         // Load SMemA/B  Store RegA/B
@@ -117,13 +121,15 @@ __global__ void hgemmT_v0_mma_m16n8k16_W1x1_T1x1(half *A, half *B, half *C, cons
         int RegA_Ptr_Row = laneId & 15;
         int RegA_Ptr_Col = (laneId / 16) * 8;
         offset = RegA_Ptr_Row * BK + RegA_Ptr_Col;
-        swizzle_col = swizzle<shift, xor_bits, chunk_bits>(offset, BK);
+        swizzle_col = swizzle<3, 1, 3>(offset, BK);
         uint32_t LD_SMemA_Ptr = __cvta_generic_to_shared(&SMem_A[RegA_Ptr_Row][swizzle_col]);
 
         // x2.m8n8
         int RegB_Ptr_Row = laneId & 7;
         int RegB_Ptr_Col = (laneId / 8) * 8;
-        uint32_t LD_SMemB_Ptr = __cvta_generic_to_shared(&SMem_B[RegB_Ptr_Row][RegB_Ptr_Col]);
+        offset = RegB_Ptr_Row * BK + RegB_Ptr_Col;
+        swizzle_col = swizzle<3, 1, 3>(offset, BK);
+        uint32_t LD_SMemB_Ptr = __cvta_generic_to_shared(&SMem_B[RegB_Ptr_Row][swizzle_col]);
 
         // for(int i = 0; i < 4; i++) {
         //     int Row_offset, Col_offset;
@@ -167,7 +173,7 @@ __global__ void hgemmT_v0_mma_m16n8k16_W1x1_T1x1(half *A, half *B, half *C, cons
 
 int main() {
     const int M = 16;
-    const int K = 16;
+    const int K = 512;
     const int N = 8;
 
     half_t *A = (half_t *)malloc(M * K * sizeof(half_t));
@@ -189,7 +195,7 @@ int main() {
     cudaMemcpy(d_B, B, N * K * sizeof(half), cudaMemcpyHostToDevice);
 
     // d_B N * K
-    hgemmT_cublas(d_A, d_B, d_C_cublas, M, K, N);
+    // hgemmT_cublas(d_A, d_B, d_C_cublas, M, K, N);
     cudaMemcpy(C_cublas_cal, d_C_cublas, M * N * sizeof(half), cudaMemcpyDeviceToHost);
 
     const int BM = 16;
@@ -197,7 +203,10 @@ int main() {
     const int BN = 8;
     dim3 grid(CEIL_DIV(N, BN), CEIL_DIV(M, BM));
     dim3 block(32);
-    hgemmT_v0_mma_m16n8k16_W1x1_T1x1<BM, BK, BN><<<grid, block>>>(d_A, d_B, d_C_mma, M, K, N);
+    for(int i = 0; i < 5; i++) {
+        Perf("hgemmT_v0_mma_m16n8k16_W1x1_T1x1_sw");
+        hgemmT_v0_mma_m16n8k16_W1x1_T1x1_sw<BM, BK, BN><<<grid, block>>>(d_A, d_B, d_C_mma, M, K, N);
+    }
     cudaMemcpy(C_mma_cal, d_C_mma, M * N * sizeof(half), cudaMemcpyDeviceToHost);
     printHalfArray(C_cublas_cal, 10);
     printHalfArray(C_mma_cal, 10);

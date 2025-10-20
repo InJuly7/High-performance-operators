@@ -120,7 +120,7 @@ __global__ void hgemmT_v0_mma_m16n8k16_W1x1_T1x1(half *A, half *B, half *C, cons
 
 int main() {
     const int M = 16;
-    const int K = 16;
+    const int K = 512;
     const int N = 8;
 
     half_t *A = (half_t *)malloc(M * K * sizeof(half_t));
@@ -142,7 +142,7 @@ int main() {
     cudaMemcpy(d_B, B, N * K * sizeof(half), cudaMemcpyHostToDevice);
 
     // d_B N * K
-    hgemmT_cublas(d_A, d_B, d_C_cublas, M, K, N);
+    // hgemmT_cublas(d_A, d_B, d_C_cublas, M, K, N);
     cudaMemcpy(C_cublas_cal, d_C_cublas, M * N * sizeof(half), cudaMemcpyDeviceToHost);
 
     const int BM = 16;
@@ -150,7 +150,11 @@ int main() {
     const int BN = 8;
     dim3 grid(CEIL_DIV(N, BN), CEIL_DIV(M, BM));
     dim3 block(32);
-    hgemmT_v0_mma_m16n8k16_W1x1_T1x1<BM, BK, BN><<<grid, block>>>(d_A, d_B, d_C_mma, M, K, N);
+    for(int i = 0; i < 5; i++) {
+        Perf("hgemmT_v0_mma_m16n8k16_W1x1_T1x1");
+        hgemmT_v0_mma_m16n8k16_W1x1_T1x1<BM, BK, BN><<<grid, block>>>(d_A, d_B, d_C_mma, M, K, N);
+    }
+
     cudaMemcpy(C_mma_cal, d_C_mma, M * N * sizeof(half), cudaMemcpyDeviceToHost);
     printHalfArray(C_cublas_cal, 10);
     printHalfArray(C_mma_cal, 10);

@@ -87,23 +87,23 @@ int main()
     // }
     
 
-	for(int i = 0; i < 16; i ++)
+	for(int i = 0; i < 8; i ++)
 	{
-		for(int j = 0; j < 256; j ++)
+		for(int j = 0; j < 8; j ++)
 		{
 			Swizzle_arr[i][j] = Swizzle<5,3,4>(i, j);
-			// std::cout << "Row: " << i << " Col: " << j << " Swizzle_col: " << Swizzle_arr[i][j] << std::endl;
+			std::cout << "Row: " << i << " Col: " << j << " Swizzle_col: " << Swizzle_arr[i][j] << std::endl;
 			Compute_Swizzle_BankId(Swizzle_Bank, i, j, Swizzle_arr[i][j]);
 		}
-		// std::cout << "----------------------"<<  std::endl;
+		std::cout << "----------------------"<<  std::endl;
 	}
 
-    for (int i = 1; i < 2; i++) {
-        for (int j = 0; j < 256; j++) {
-            print_bankId(Swizzle_Bank, i, j);
-        }
-        std::cout << "----------------------"<<  std::endl;
-    }
+    // for (int i = 1; i < 2; i++) {
+    //     for (int j = 0; j < 256; j++) {
+    //         print_bankId(Swizzle_Bank, i, j);
+    //     }
+    //     std::cout << "----------------------"<<  std::endl;
+    // }
 
 	return 0;
 }
