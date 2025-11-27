@@ -10,7 +10,7 @@
 using namespace nvcuda;
 using half_t = half_float::half;
 
-#define CEIL_DIV(M, N) (((M) + (N) - 1) / (N))
+#define CEIL_DIV(M, N) (((M) + (N)-1) / (N))
 #define HALF2(value) (reinterpret_cast<half2 *>(&(value))[0])
 #define HALF4(value) (reinterpret_cast<float2 *>(&(value))[0])
 #define HALF8(value) (reinterpret_cast<float4 *>(&(value)))[0]
@@ -59,7 +59,6 @@ __global__ void hgemm_v2_wmma_m16n16k16_W1x8_T8x1(half *A, half *B, half *C, con
             wmma::mma_sync(C_frag[tm], A_frag, B_frag, C_frag[tm]);
             __syncthreads();
         }
-        
     }
     for (int tm = 0; tm < TM; ++tm) {
         wmma::store_matrix_sync(&C[tm * WM * N + warpId * WN], C_frag[tm], N, wmma::mem_row_major);
@@ -103,10 +102,9 @@ int main() {
     dim3 grid(CEIL_DIV(N, WN * TN * WARP_N), CEIL_DIV(M, WM * TM * WARP_M));
     dim3 block(256);
 
-    for(int i = 0; i < 5; i++) {
+    for (int i = 0; i < 5; i++) {
         Perf("hgemm_v2_wmma_m16n16k16_W1x8_T8x1");
-        hgemm_v2_wmma_m16n16k16_W1x8_T8x1<WM, WK, WN, WARP_M, WARP_N, TM, TN>
-            <<<grid, block>>>(mat_A_device, mat_B_device, mat_C_wmma, M, K, N);
+        hgemm_v2_wmma_m16n16k16_W1x8_T8x1<WM, WK, WN, WARP_M, WARP_N, TM, TN><<<grid, block>>>(mat_A_device, mat_B_device, mat_C_wmma, M, K, N);
     }
     cudaMemcpy(mat_C_wmma_calc, mat_C_wmma, M * N * sizeof(half_t), cudaMemcpyDeviceToHost);
 

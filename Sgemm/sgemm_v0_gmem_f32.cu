@@ -42,7 +42,7 @@ int main() {
     const int BLOCK = 32;
     dim3 block(BLOCK, BLOCK);
     dim3 grid((N + BLOCK - 1) / BLOCK, (M + BLOCK - 1) / BLOCK);
-    for(int i = 0; i < 5; i++) {
+    for (int i = 0; i < 5; i++) {
         sgemm_v0_gmem_f32<<<grid, block>>>(mat_A_device, mat_B_device, mat_C_device, M, K, N);
         cudaDeviceSynchronize();
     }

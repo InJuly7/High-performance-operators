@@ -6,14 +6,11 @@
 #include <math.h>
 #include "../../include/half.hpp"
 
-
 using half_t = half_float::half;
 
-class Perf
-{
-public:
-    Perf(const std::string &name)
-    {
+class Perf {
+   public:
+    Perf(const std::string& name) {
         m_name = name;
         cudaEventCreate(&m_start);
         cudaEventCreate(&m_end);
@@ -21,8 +18,7 @@ public:
         cudaEventSynchronize(m_start);
     }
 
-    ~Perf()
-    {
+    ~Perf() {
         cudaEventRecord(m_end);
         cudaEventSynchronize(m_end);
         float elapsed_time = 0.0;
@@ -30,11 +26,10 @@ public:
         std::cout << m_name << " elapse: " << elapsed_time << " ms" << std::endl;
     }
 
-private:
+   private:
     std::string m_name;
     cudaEvent_t m_start, m_end;
-}; // class Perf
-
+};  // class Perf
 
 void generateRandomHalfArray(half_t* arr, int N) {
     using namespace half_float;
@@ -45,7 +40,7 @@ void generateRandomHalfArray(half_t* arr, int N) {
 
     // 生成随机数
     for (int i = 0; i < N; i++) {
-        // 
+        //
         arr[i] = half_t(dis(gen));
     }
 }
@@ -84,7 +79,7 @@ void compare_matrices(int N, int K, float* cpu_res, float* gpu_res) {
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < K; j++) {
             int idx = i * K + j;
-            if (abs(cpu_res[idx] - gpu_res[idx])/(cpu_res[idx] + epsilon) > 1e-3f) {
+            if (abs(cpu_res[idx] - gpu_res[idx]) / (cpu_res[idx] + epsilon) > 1e-3f) {
                 printf("error: (%d,%d) : cpu_res : %f gpu_res = %f\n", i, j, cpu_res[i * K + j], gpu_res[i * K + j]);
                 return;
             }
@@ -118,7 +113,7 @@ void compare_matrices(int N1, int N2, half_t* cpu_res, half_t* gpu_res) {
 void cpu_rms_norm(float* mat_A, float* mat_B_cpu_calc, const float g, const int N, const int K) {
     const float epsilon = 1e-5f;
     for (int i = 0; i < N; i++) {
-        float val = 0.0f;  
+        float val = 0.0f;
         for (int j = 0; j < K; j++) {
             val += mat_A[i * K + j] * mat_A[i * K + j];
         }
@@ -152,4 +147,4 @@ void cpu_rms_norm(half_t* mat_A, half_t* mat_B_cpu_calc, const float g, const in
     }
 }
 
-#endif // UTIL_HPP
+#endif  // UTIL_HPP

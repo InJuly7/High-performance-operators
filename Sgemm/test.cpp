@@ -36,10 +36,9 @@ __global__ void sgemm_t_8x8_sliced_k_f32x4_bcf_kernel(float *a, float *b, float 
         FLOAT4(r_load_a[0]) = FLOAT4(a[load_a_gmem_addr]);
         FLOAT4(r_load_b[0]) = FLOAT4(b[load_b_gmem_addr]);
 
- layer_0  b0
-        s_a[load_a_smem_k + 1][load_a_smem_m] = r_load_a[1];  // e.g layer_4  b0
-        s_a[load_a_smem_k + 2][load_a_smem_m] = r_load_a[2];  // e.g layer_8  b0
-        s_a[load_a_smem_k + 3][load_a_smem_m] = r_load_a[3];  // e.g layer_12 b0
+        layer_0 b0 s_a[load_a_smem_k + 1][load_a_smem_m] = r_load_a[1];  // e.g layer_4  b0
+        s_a[load_a_smem_k + 2][load_a_smem_m] = r_load_a[2];             // e.g layer_8  b0
+        s_a[load_a_smem_k + 3][load_a_smem_m] = r_load_a[3];             // e.g layer_12 b0
 
         FLOAT4(s_b[load_b_smem_k][load_b_smem_n]) = FLOAT4(r_load_b[0]);
 
@@ -47,7 +46,6 @@ __global__ void sgemm_t_8x8_sliced_k_f32x4_bcf_kernel(float *a, float *b, float 
 
 #pragma unroll
         for (int tk = 0; tk < BK; tk++) {
-
             FLOAT4(r_comp_a[0]) = FLOAT4(s_a[tk][ty * TM / 2]);
             FLOAT4(r_comp_a[4]) = FLOAT4(s_a[tk][ty * TM / 2 + BM / 2]);
 

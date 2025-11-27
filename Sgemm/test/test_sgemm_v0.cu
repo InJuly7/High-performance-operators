@@ -35,14 +35,13 @@ int main() {
     size_t current_size;
     cudaDeviceGetLimit(&current_size, cudaLimitPrintfFifoSize);
     printf("Current printf buffer size: %zu bytes\n", current_size);
-    
+
     // 设置更大的缓冲区
-    size_t new_size = 64 * 1024 * 1024; // 64MB
+    size_t new_size = 64 * 1024 * 1024;  // 64MB
     cudaDeviceSetLimit(cudaLimitPrintfFifoSize, new_size);
     cudaDeviceGetLimit(&current_size, cudaLimitPrintfFifoSize);
     printf("New printf buffer size: %zu bytes\n", current_size);
 
-    
     const int M = 32, K = 8, N = 32;
     float *mat_A = (float *)malloc(M * K * sizeof(float));
     float *mat_B = (float *)malloc(K * N * sizeof(float));

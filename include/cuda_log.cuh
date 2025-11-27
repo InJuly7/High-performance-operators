@@ -23,7 +23,7 @@ __device__ __forceinline__ void cudaLog(const char *fmt = "", Args &&...args) {
         len;                 \
     })
     auto prefix_len = STRLEN(full_fmt);
-    // 如 GMem[%d] ==> SMem[%d] 
+    // 如 GMem[%d] ==> SMem[%d]
     auto fmt_len = STRLEN(fmt);
 #undef STRLEN
 

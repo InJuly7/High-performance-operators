@@ -32,7 +32,7 @@ __device__ __forceinline__ half block_reduce_sum_f16(half val) {
     val = warp_reduce_sum_f16(val);
     if (laneId == 0) warpsum[warpId] = val;
     __syncthreads();
-    // tid == 0 返回 block_reduce_sum 
+    // tid == 0 返回 block_reduce_sum
     if (warpId == 0) {
         val = (laneId < NUM_WARPS) ? warpsum[laneId] : 0.0f;
         val = warp_reduce_sum_f16(val);
@@ -57,14 +57,13 @@ __device__ __forceinline__ half block_reduce_max_f16(half val) {
     val = warp_reduce_max_f16(val);
     if (laneId == 0) warpsum[warpId] = val;
     __syncthreads();
-    // tid == 0 返回 block_reduce_max 
+    // tid == 0 返回 block_reduce_max
     if (warpId == 0) {
         val = (laneId < NUM_WARPS) ? warpsum[laneId] : (half)0.0f;
         val = warp_reduce_max_f16(val);
     }
     return val;
 }
-
 
 // NOTE: softmax per-token
 // Softmax x: (S,h), y: (S,h)
@@ -82,24 +81,24 @@ __global__ void safe_softmax_v2_f16x8_pack_f16(half *mat_A, half *mat_B, int N) 
     __shared__ half global_max;
 
     half local_max = __float2half(-65504.0f);
-    for(int i = 0; i < 8; i++) {
+    for (int i = 0; i < 8; i++) {
         local_max = __hmax(local_max, pack_A[i]);
     }
     local_max = block_reduce_max_f16<NUM_THREADS>(local_max);
-    if(threadIdx.x == 0) global_max = local_max;
+    if (threadIdx.x == 0) global_max = local_max;
     __syncthreads();
 
     half local_sum = __float2half(0.0f);
-    for(int i = 0; i < 8; i++) {
+    for (int i = 0; i < 8; i++) {
         pack_A[i] = hexp(pack_A[i] - global_max);
         local_sum += pack_A[i];
     }
     local_sum = block_reduce_sum_f16<NUM_THREADS>(local_sum);
-    if(threadIdx.x == 0) exp_sum = local_sum;
+    if (threadIdx.x == 0) exp_sum = local_sum;
     __syncthreads();
-    
-    for(int i = 0; i < 8; i++) {
-        pack_B[i] = pack_A[i]/exp_sum;
+
+    for (int i = 0; i < 8; i++) {
+        pack_B[i] = pack_A[i] / exp_sum;
     }
     LDST128BITS(thread_B_start[0]) = LDST128BITS(pack_B[0]);
 }
@@ -120,11 +119,11 @@ int main() {
     half_t *mat_B_gpu_calc = (half_t *)malloc(N1 * N2 * sizeof(half_t));
     cudaMalloc((void **)&mat_B_device, N1 * N2 * sizeof(half));
     dim3 grid(N1);
-    dim3 block(N2/8);
+    dim3 block(N2 / 8);
 
     for (int i = 0; i < 5; i++) {
         Perf perf("safe_softmax_v2_f16x8_pack_f16");
-        safe_softmax_v2_f16x8_pack_f16<N2/8><<<grid, block>>>(mat_A_device, mat_B_device, N2);
+        safe_softmax_v2_f16x8_pack_f16<N2 / 8><<<grid, block>>>(mat_A_device, mat_B_device, N2);
     }
 
     cudaMemcpy(mat_B_gpu_calc, mat_B_device, N1 * N2 * sizeof(half), cudaMemcpyDeviceToHost);

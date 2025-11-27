@@ -7,7 +7,7 @@
 #include "./include/util.hpp"
 
 #define WARP_SIZE 32
-#define CEIL_DIV(M, N) (((M) + (N) - 1) / (N))
+#define CEIL_DIV(M, N) (((M) + (N)-1) / (N))
 #define LDST128BITS(val) (reinterpret_cast<float4 *>(&(val)))[0]
 #define FLOAT4(val) (reinterpret_cast<float4 *>(&(val)))[0]
 
@@ -32,7 +32,7 @@ __global__ void flash_attn_split_q_naive(float *Q, float *K, float *V, float *l,
     for (int i = 0; i < dk; i += 4) {
         FLOAT4(SMem_Q[threadIdx.x * dk + i]) = FLOAT4(Q[threadIdx.x * dk + i]);
     }
-    
+
     float row_m_prev = -FLT_MAX;
     float row_l_prev = 0;
 
@@ -58,17 +58,17 @@ __global__ void flash_attn_split_q_naive(float *Q, float *K, float *V, float *l,
         float row_m_new = fmax(row_m, row_m_prev);
 
         float row_l = 0.0f;
-        for(int bc = 0; bc < Bc; bc++) {
+        for (int bc = 0; bc < Bc; bc++) {
             // causal mask
-            if(tc * Bc + bc > row_Q) break;
+            if (tc * Bc + bc > row_Q) break;
             SMem_S[threadIdx.x * Bc + bc] = __expf(SMem_S[threadIdx.x * Bc + bc] - row_m_new);
             row_l += SMem_S[threadIdx.x * Bc + bc];
         }
         float row_l_new = row_l + row_l_prev * __expf(row_m_prev - row_m_new);
 
-        for(int i = 0; i < dk; i++) {
+        for (int i = 0; i < dk; i++) {
             float pv = 0.0f;
-            for(int bc = 0; bc < Bc; bc++) {
+            for (int bc = 0; bc < Bc; bc++) {
                 // causal mask
                 if (tc * Bc + bc > row_Q) break;
                 pv += SMem_S[threadIdx.x * Bc + bc] * SMem_V[bc * dk + i];
@@ -77,7 +77,7 @@ __global__ void flash_attn_split_q_naive(float *Q, float *K, float *V, float *l,
         }
         row_m_prev = row_m_new;
         row_l_prev = row_l_new;
-        __syncthreads(); 
+        __syncthreads();
     }
     l[threadIdx.x] = row_m_prev + __logf(row_l_prev);
 }

@@ -10,7 +10,7 @@
 using namespace nvcuda;
 using half_t = half_float::half;
 
-#define CEIL_DIV(M, N) (((M) + (N) - 1) / (N))
+#define CEIL_DIV(M, N) (((M) + (N)-1) / (N))
 #define HALF2(value) (reinterpret_cast<half2 *>(&(value)))[0]
 #define HALF4(value) (reinterpret_cast<float2 *>(&(value)))[0]
 #define HALF8(value) (reinterpret_cast<float4 *>(&(value)))[0]
@@ -85,7 +85,6 @@ __global__ void hgemm_v3_wmma_m16n16k16_W2x4_T4x2_dbf(half *A, half *B, half *C,
 
         uint32_t ST_SMemB_Ptr = __cvta_generic_to_shared(&SMem_B[buffer_next_idx][LD_GMemB_Row][LD_GMemB_Col]);
         CP_ASYNC_CG(ST_SMemB_Ptr, &B[LD_GMemB_Row * N + LD_GMemB_Col], 16);
-        
 
         A += BK;
         B += BK * N;
@@ -171,8 +170,7 @@ int main() {
 
     for (int i = 0; i < 5; i++) {
         Perf("hgemm_v3_wmma_m16n16k16_W2x4_T4x2_dbf");
-        hgemm_v3_wmma_m16n16k16_W2x4_T4x2_dbf<WM, WK, WN, WARP_M, WARP_N, TM, TN>
-            <<<grid, block>>>(mat_A_device, mat_B_device, mat_C_wmma, M, K, N);
+        hgemm_v3_wmma_m16n16k16_W2x4_T4x2_dbf<WM, WK, WN, WARP_M, WARP_N, TM, TN><<<grid, block>>>(mat_A_device, mat_B_device, mat_C_wmma, M, K, N);
     }
     cudaMemcpy(mat_C_wmma_calc, mat_C_wmma, M * N * sizeof(half_t), cudaMemcpyDeviceToHost);
 

@@ -1,4 +1,4 @@
-#ifndef UTIL_HPP // UTIL_HPP
+#ifndef UTIL_HPP  // UTIL_HPP
 #define UTIL_HPP
 
 #include <iostream>
@@ -47,4 +47,4 @@ void transpose_cpu(float *input, float *output, const int M, const int N) {
     }
 }
 
-#endif // UTIL_HPP
+#endif  // UTIL_HPP

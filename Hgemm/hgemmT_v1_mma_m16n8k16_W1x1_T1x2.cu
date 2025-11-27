@@ -12,7 +12,7 @@ using namespace nvcuda;
 using half_t = half_float::half;
 
 #define WARP_SIZE 32
-#define CEIL_DIV(M, N) (((M) + (N) - 1) / (N))
+#define CEIL_DIV(M, N) (((M) + (N)-1) / (N))
 
 // Vector Access
 #define HALF2(value) (reinterpret_cast<half2 *>(&(value)))[0]
@@ -66,11 +66,11 @@ __global__ void hgemmT_v1_mma_m16n8k16_W1x1_T1x2(half *A, half *B, half *C, cons
     __shared__ half SMem_A[BM][BK];
     __shared__ half SMem_B[BN][BK];
     uint32_t RA[4], RB[4];
-    uint32_t RC[4] = {0,0};
+    uint32_t RC[4] = {0, 0};
 
     int warpId = threadIdx.x / WARP_SIZE;
     int laneId = threadIdx.x & (WARP_SIZE - 1);
-    
+
     // (16 * 16) / 32 = 8 E/T
     int LD_GMemA_Row = (threadIdx.x * 8) / 16;
     int LD_GMemA_Col = (threadIdx.x * 8) & 15;
@@ -79,14 +79,14 @@ __global__ void hgemmT_v1_mma_m16n8k16_W1x1_T1x2(half *A, half *B, half *C, cons
     int LD_GMemB_Row = (threadIdx.x * 8) / 16;
     int LD_GMemB_Col = (threadIdx.x * 8) & 15;
 
-    for(int k = 0; k < K; k += BK) {
+    for (int k = 0; k < K; k += BK) {
         // Load GMemA/B  Store SMemA/B
         HALF8(SMem_A[LD_GMemA_Row][LD_GMemA_Col]) = HALF8(A[LD_GMemA_Row * K + LD_GMemA_Col]);
         HALF8(SMem_B[LD_GMemB_Row][LD_GMemB_Col]) = HALF8(B[LD_GMemB_Row * K + LD_GMemB_Col]);
         A += BK;
         B += BK;
         __syncthreads();
-    
+
         // Load SMemA/B  Store RegA/B
         // x4.m8n8
         int RegA_Ptr_Row = laneId & 15;

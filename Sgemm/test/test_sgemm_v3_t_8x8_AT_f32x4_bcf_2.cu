@@ -7,7 +7,7 @@
 #include "../include/util.hpp"
 #include "../../include/cuda_log.cuh"
 
-#define CEIL_DIV(M, N) (((M) + (N) - 1) / (N))
+#define CEIL_DIV(M, N) (((M) + (N)-1) / (N))
 #define LDST128BITS(val) (reinterpret_cast<float4 *>(&(val)))[0]
 #define FLOAT4(val) (reinterpret_cast<float4 *>(&(val)))[0]
 
@@ -112,7 +112,7 @@ __global__ void sgemm_v3_t_8x8_AT_f32x4_bcf_1(float *mat_A, float *mat_B, float 
 }
 
 int main() {
-    size_t new_size = 1024 * 1024 * 1024; 
+    size_t new_size = 1024 * 1024 * 1024;
     cudaDeviceSetLimit(cudaLimitPrintfFifoSize, new_size);
     const int M = 128, K = 8, N = 128;
     float *mat_A = (float *)malloc(M * K * sizeof(float));

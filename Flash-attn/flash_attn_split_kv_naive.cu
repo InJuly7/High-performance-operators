@@ -7,7 +7,7 @@
 #include "./include/util.hpp"
 
 #define WARP_SIZE 32
-#define CEIL_DIV(M, N) (((M) + (N) - 1) / (N))
+#define CEIL_DIV(M, N) (((M) + (N)-1) / (N))
 #define LDST128BITS(val) (reinterpret_cast<float4 *>(&(val)))[0]
 #define FLOAT4(val) (reinterpret_cast<float4 *>(&(val)))[0]
 

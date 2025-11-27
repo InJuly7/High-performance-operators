@@ -11,7 +11,7 @@ using namespace nvcuda;
 using half_t = half_float::half;
 
 #define WARP_SIZE 32
-#define CEIL_DIV(M, N) (((M) + (N) - 1) / (N))
+#define CEIL_DIV(M, N) (((M) + (N)-1) / (N))
 
 // Vector Access
 #define HALF2(value) (reinterpret_cast<half2 *>(&(value)))[0]
@@ -133,9 +133,9 @@ __global__ void hgemm_v1_mma_m16n8k16_W2x4_T4x4(half *A, half *B, half *C, const
 }
 
 int main() {
-    const int M = 1024; // basic 128
-    const int K = 1024; // basic 16
-    const int N = 1024; // basic 128
+    const int M = 1024;  // basic 128
+    const int K = 1024;  // basic 16
+    const int N = 1024;  // basic 128
 
     half_t *mat_A = (half_t *)malloc(M * K * sizeof(half_t));
     half_t *mat_B = (half_t *)malloc(K * N * sizeof(half_t));

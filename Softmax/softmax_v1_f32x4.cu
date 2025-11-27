@@ -27,7 +27,7 @@ __device__ __forceinline__ float block_reduce_sum_f32(float val) {
     val = warp_reduce_sum_f32(val);
     if (laneId == 0) warpsum[warpId] = val;
     __syncthreads();
-    // tid == 0 返回 block_reduce_sum 
+    // tid == 0 返回 block_reduce_sum
     if (warpId == 0) {
         val = (laneId < NUM_WARPS) ? warpsum[laneId] : 0.0f;
         val = warp_reduce_sum_f32(val);
@@ -50,7 +50,7 @@ __global__ void softmax_v1_f32x4(float *mat_A, float *mat_B, int N) {
     __shared__ float exp_sum;
     float exp_val = reg_A.x + reg_A.y + reg_A.z + reg_A.w;
     float local_sum = block_reduce_sum_f32<NUM_THREADS>(exp_val);
-    if(threadIdx.x == 0) exp_sum = local_sum;
+    if (threadIdx.x == 0) exp_sum = local_sum;
     __syncthreads();
 
     float4 reg_B;
@@ -75,11 +75,11 @@ int main() {
     float *mat_B_gpu_calc = (float *)malloc(N1 * N2 * sizeof(float));
     cudaMalloc((void **)&mat_B_device, N1 * N2 * sizeof(float));
     dim3 grid(N1);
-    dim3 block(N2/4);
+    dim3 block(N2 / 4);
 
     for (int i = 0; i < 5; i++) {
         Perf perf("softmax_v1_f32x4");
-        softmax_v1_f32x4<N2/4><<<grid, block>>>(mat_A_device, mat_B_device, N2);
+        softmax_v1_f32x4<N2 / 4><<<grid, block>>>(mat_A_device, mat_B_device, N2);
     }
 
     cudaMemcpy(mat_B_gpu_calc, mat_B_device, N1 * N2 * sizeof(float), cudaMemcpyDeviceToHost);

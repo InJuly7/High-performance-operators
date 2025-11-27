@@ -96,12 +96,12 @@ __global__ void safe_softmax(float *S, float *P, int H, int S1, int S2) {
 }
 
 // O = P @ V
-__global__ void pv_matmul(float *P, float *V, float* O, int H, int S1, int S2, int dk) {
+__global__ void pv_matmul(float *P, float *V, float *O, int H, int S1, int S2, int dk) {
     P += blockIdx.y * S1 * S2 + blockIdx.x * S2;
     V += blockIdx.y * S2 * dk;
-    O += blockIdx.y * S1 * dk + blockIdx.x * dk; 
+    O += blockIdx.y * S1 * dk + blockIdx.x * dk;
     float temp = 0.0f;
-    for(int i = 0; i < S2; i++) {
+    for (int i = 0; i < S2; i++) {
         temp += P[i] * V[i * dk + threadIdx.x];
     }
     O[threadIdx.x] = temp;
@@ -138,7 +138,7 @@ int main() {
     cudaMalloc((void **)&d_P, H * S1 * S2 * sizeof(float));
     float *d_O = NULL;
     cudaMalloc((void **)&d_O, H * S1 * dk * sizeof(float));
-    // S = (Q @ K^T) * rsqrtf(dk)    
+    // S = (Q @ K^T) * rsqrtf(dk)
     dim3 grid_1 = {S1, H, 1};
     dim3 block_1 = {S2};
     qk_matmul<<<grid_1, block_1>>>(d_Q, d_K, d_S, H, S1, S2, dk);
@@ -192,7 +192,6 @@ int main() {
     free(O_cpu_cal);
     free(S_cpu_cal);
     free(P_cpu_cal);
-
 
     cudaFree(d_Q);
     cudaFree(d_K);

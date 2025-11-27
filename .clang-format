@@ -27,3 +27,6 @@ SortIncludes: false
 
 # 保护宏定义
 IndentPPDirectives: None
+
+# 不对预处理器指令进行强制缩进
+IndentPPDirectives: None

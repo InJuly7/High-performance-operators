@@ -34,7 +34,8 @@ __global__ void reduceUnrolling2(int *g_idata, int *g_odata, unsigned int n) {
     for (int stride = blockDim.x / 2; stride > 0; stride >>= 1) {
         if (tid < stride) {
             idata[ti] += idata[tid + stride];
-        }d
+        }
+        d
         // synchronize within threadblock
         __syncthreads();
     }

@@ -17,7 +17,7 @@ int main() {
     half_t *mat_B = (half_t *)malloc(K * N * sizeof(half_t));
     half_t *mat_C_cpu_calc = (half_t *)malloc(M * N * sizeof(half_t));
     half_t *mat_C_gpu_calc = (half_t *)malloc(M * N * sizeof(half_t));
-    
+
     generateRandomHalfArray(mat_A, M * K);
     generateRandomHalfArray(mat_B, K * N);
 
@@ -48,5 +48,4 @@ int main() {
     cudaFree(mat_A_device);
     cudaFree(mat_B_device);
     cudaFree(mat_C_device);
-
 }

@@ -34,7 +34,7 @@ __global__ void reduce_v7_shuffle(float *vec_A, float *vec_B) {
     __shared__ float warpLevelSums[WARP_NUM];
     int warpId = threadIdx.x / WARP_SIZE;
     int landId = threadIdx.x & (WARP_SIZE - 1);
-    
+
     sum = warp_shfl_Reduce<blockSize>(sum);
     // 每个 warp 中第一个 thread 存储 warp sum
     if (landId == 0) warpLevelSums[warpId] = sum;

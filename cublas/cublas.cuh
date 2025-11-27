@@ -1,11 +1,11 @@
-#ifndef CUBLASH_CUH 
+#ifndef CUBLASH_CUH
 #define CUBLASH_CUH
 
 #include <cublas_v2.h>
 #include <cuda_fp16.h>
 #include <algorithm>
 
-#define CEIL_DIV(M, N) (((M) + (N) - 1) / (N))
+#define CEIL_DIV(M, N) (((M) + (N)-1) / (N))
 
 void hgemm_cublas(half *A, half *B, half *C, size_t M, size_t K, size_t N) {
     cublasHandle_t handle = nullptr;
@@ -34,12 +34,12 @@ void hgemmT_cublas(half *A, half *B, half *C, size_t M, size_t K, size_t N) {
     cublasSetMathMode(handle, CUBLAS_TENSOR_OP_MATH);
     half alpha = 1.0;
     half beta = 0.0;
-    
-    half *BT; // K * N
+
+    half *BT;  // K * N
     cudaMalloc((void **)&BT, K * N * sizeof(half));
     // B: N * K, BT: K * N
     dim3 grid(CEIL_DIV(K, 16), CEIL_DIV(N, 16));
-    dim3 block(16,16);
+    dim3 block(16, 16);
     transpose_naive<<<grid, block>>>(B, BT, K, N);
     cublasGemmEx(handle, CUBLAS_OP_N, CUBLAS_OP_N, N, M, K, &alpha, BT, CUDA_R_16F, N, A, CUDA_R_16F, K, &beta, C, CUDA_R_16F, N, CUBLAS_COMPUTE_16F,
                  CUBLAS_GEMM_DEFAULT_TENSOR_OP);

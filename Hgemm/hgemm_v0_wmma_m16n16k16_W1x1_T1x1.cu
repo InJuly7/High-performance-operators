@@ -10,11 +10,11 @@
 using namespace nvcuda;
 using half_t = half_float::half;
 
-#define CEIL_DIV(M, N) (((M) + (N) - 1) / (N))
+#define CEIL_DIV(M, N) (((M) + (N)-1) / (N))
 #define LDST128BITS(val) (reinterpret_cast<float4 *>(&(val)))[0]
 #define FLOAT4(val) (reinterpret_cast<float4 *>(&(val)))[0]
 
-template<unsigned int WM, unsigned int WK, unsigned int WN>
+template <unsigned int WM, unsigned int WK, unsigned int WN>
 __global__ void hgemm_v0_wmma_m16n16k16_W1x1_T1x1(half *A, half *B, half *C, const int M, const int K, const int N) {
     A += blockIdx.y * WM * K;
     B += blockIdx.x * WN;
@@ -46,7 +46,7 @@ int main() {
     half_t *mat_B = (half_t *)malloc(K * N * sizeof(half_t));
     half_t *mat_C_cublas_calc = (half_t *)malloc(M * N * sizeof(half_t));
     half_t *mat_C_wmma_calc = (half_t *)malloc(M * N * sizeof(half_t));
-    
+
     generateRandomHalfArray(mat_A, M * K);
     generateRandomHalfArray(mat_B, K * N);
 
@@ -65,10 +65,10 @@ int main() {
     const int WM = 16;
     const int WK = 16;
     const int WN = 16;
-    
+
     dim3 grid(CEIL_DIV(N, WN), CEIL_DIV(M, WM));
     dim3 block(32);
-    for(int i = 0; i < 5; i++) {
+    for (int i = 0; i < 5; i++) {
         Perf("hgemm_v0_wmma_m16n16k16_W1x1_T1x1");
         hgemm_v0_wmma_m16n16k16_W1x1_T1x1<WM, WK, WN><<<grid, block>>>(mat_A_device, mat_B_device, mat_C_wmma, M, K, N);
     }
@@ -87,5 +87,4 @@ int main() {
     cudaFree(mat_B_device);
     cudaFree(mat_C_cublas);
     cudaFree(mat_C_wmma);
-
 }

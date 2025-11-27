@@ -16,7 +16,7 @@ void generateRandomHalfArray(half_t* arr, int N) {
 
     // 生成随机数
     for (int i = 0; i < N; i++) {
-        // 
+        //
         arr[i] = half_t(dis(gen));
     }
 }

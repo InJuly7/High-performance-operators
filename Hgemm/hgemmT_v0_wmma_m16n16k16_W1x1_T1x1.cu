@@ -12,7 +12,7 @@ using namespace nvcuda;
 using half_t = half_float::half;
 
 #define WARP_SIZE 32
-#define CEIL_DIV(M, N) (((M) + (N) - 1) / (N))
+#define CEIL_DIV(M, N) (((M) + (N)-1) / (N))
 
 // Vector Access
 #define HALF2(value) (reinterpret_cast<half2 *>(&(value)))[0]
@@ -54,13 +54,12 @@ using half_t = half_float::half;
 
 #define REG(val) (*reinterpret_cast<uint32_t *>(&(val)))
 
-template<unsigned int WM, unsigned int WK, unsigned int WN>
+template <unsigned int WM, unsigned int WK, unsigned int WN>
 __global__ void hgemmT_v0_wmma_m16n16k16_W1x1_T1x1(half *A, half *B, half *C, const int M, const int K, const int N) {
-    
     const int BM = WM;
     const int BK = WK;
     const int BN = WN;
-    
+
     A += blockIdx.y * BM * K;
     B += blockIdx.x * BN * K;
     C += blockIdx.y * BM * N + blockIdx.x * BN;
@@ -68,7 +67,7 @@ __global__ void hgemmT_v0_wmma_m16n16k16_W1x1_T1x1(half *A, half *B, half *C, co
     wmma::fragment<wmma::accumulator, WM, WN, WK, half> C_frag;
     wmma::fill_fragment(C_frag, 0.0);
 
-    for (int  k = 0; k < K; k += BK) {
+    for (int k = 0; k < K; k += BK) {
         wmma::fragment<wmma::matrix_a, WM, WN, WK, half, wmma::row_major> A_frag;
         wmma::fragment<wmma::matrix_b, WM, WN, WK, half, wmma::col_major> B_frag;
 
@@ -82,26 +81,25 @@ __global__ void hgemmT_v0_wmma_m16n16k16_W1x1_T1x1(half *A, half *B, half *C, co
     wmma::store_matrix_sync(C, C_frag, N, wmma::mem_row_major);
 }
 
-
 int main() {
     const int M = 1024;
     const int N = 1024;
     const int K = 1024;
 
-    half_t* A = (half_t*)malloc(M * K * sizeof(half_t));
-    half_t* B = (half_t*)malloc(N * K * sizeof(half_t));
-    half_t* C_cublas_cal = (half_t*)malloc(M * N * sizeof(half_t));
-    half_t* C_wmma_cal = (half_t*)malloc(M * N * sizeof(half_t));
+    half_t *A = (half_t *)malloc(M * K * sizeof(half_t));
+    half_t *B = (half_t *)malloc(N * K * sizeof(half_t));
+    half_t *C_cublas_cal = (half_t *)malloc(M * N * sizeof(half_t));
+    half_t *C_wmma_cal = (half_t *)malloc(M * N * sizeof(half_t));
 
     generateRandomHalfArray(A, M * K);
     generateRandomHalfArray(B, N * K);
 
     // d_B N * K
     half *d_A, *d_B, *d_C_wmma, *d_C_cublas;
-    cudaMalloc((void**)&d_A, M * K * sizeof(half));
-    cudaMalloc((void**)&d_B, N * K * sizeof(half));
-    cudaMalloc((void**)&d_C_wmma, M * N * sizeof(half));
-    cudaMalloc((void**)&d_C_cublas, M * N * sizeof(half));
+    cudaMalloc((void **)&d_A, M * K * sizeof(half));
+    cudaMalloc((void **)&d_B, N * K * sizeof(half));
+    cudaMalloc((void **)&d_C_wmma, M * N * sizeof(half));
+    cudaMalloc((void **)&d_C_cublas, M * N * sizeof(half));
 
     cudaMemcpy(d_A, A, M * K * sizeof(half), cudaMemcpyHostToDevice);
     cudaMemcpy(d_B, B, N * K * sizeof(half), cudaMemcpyHostToDevice);

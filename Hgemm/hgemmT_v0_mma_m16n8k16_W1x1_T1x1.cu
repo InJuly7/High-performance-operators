@@ -12,7 +12,7 @@ using namespace nvcuda;
 using half_t = half_float::half;
 
 #define WARP_SIZE 32
-#define CEIL_DIV(M, N) (((M) + (N) - 1) / (N))
+#define CEIL_DIV(M, N) (((M) + (N)-1) / (N))
 
 // Vector Access
 #define HALF2(value) (reinterpret_cast<half2 *>(&(value)))[0]
@@ -66,11 +66,11 @@ __global__ void hgemmT_v0_mma_m16n8k16_W1x1_T1x1(half *A, half *B, half *C, cons
     __shared__ half SMem_A[BM][BK];
     __shared__ half SMem_B[BN][BK];
     uint32_t RA[4], RB[2];
-    uint32_t RC[2] = {0,0};
+    uint32_t RC[2] = {0, 0};
 
     int warpId = threadIdx.x / WARP_SIZE;
     int laneId = threadIdx.x & (WARP_SIZE - 1);
-    
+
     // (16 * 16) / 32 = 8 E/T
     int LD_GMemA_Row = (threadIdx.x * 8) / 16;
     int LD_GMemA_Col = (threadIdx.x * 8) & 15;
@@ -79,14 +79,14 @@ __global__ void hgemmT_v0_mma_m16n8k16_W1x1_T1x1(half *A, half *B, half *C, cons
     int LD_GMemB_Row = (threadIdx.x * 4) / 16;
     int LD_GMemB_Col = (threadIdx.x * 4) & 15;
 
-    for(int k = 0; k < K; k += BK) {
+    for (int k = 0; k < K; k += BK) {
         // Load GMemA/B  Store SMemA/B
         HALF8(SMem_A[LD_GMemA_Row][LD_GMemA_Col]) = HALF8(A[LD_GMemA_Row * K + LD_GMemA_Col]);
         HALF4(SMem_B[LD_GMemB_Row][LD_GMemB_Col]) = HALF4(B[LD_GMemB_Row * K + LD_GMemB_Col]);
         A += BK;
         B += BK;
         __syncthreads();
-    
+
         // Load SMemA/B  Store RegA/B
         // x4.m8n8
         int RegA_Ptr_Row = laneId & 15;
@@ -150,7 +150,7 @@ int main() {
     const int BN = 8;
     dim3 grid(CEIL_DIV(N, BN), CEIL_DIV(M, BM));
     dim3 block(32);
-    for(int i = 0; i < 5; i++) {
+    for (int i = 0; i < 5; i++) {
         Perf("hgemmT_v0_mma_m16n8k16_W1x1_T1x1");
         hgemmT_v0_mma_m16n8k16_W1x1_T1x1<BM, BK, BN><<<grid, block>>>(d_A, d_B, d_C_mma, M, K, N);
     }
@@ -173,21 +173,21 @@ int main() {
 }
 
 // for(int i = 0; i < 4; i++) {
-        //     int Row_offset, Col_offset;
-        //     if (i == 0) {
-        //         // T0~T3 : T0, ... , T28~T31 : T7
-        //         Row_offset = (laneId / 4) & 15, Col_offset = ((laneId / 4) / 16) * 8 + ((laneId * 2) & 7);  // T0~T7 控制
-        //     } else if (i == 1) {
-        //         // T0~T3 : T8, ... , T28~T31 : T15
-        //         Row_offset = (laneId / 4 + 8) & 15, Col_offset = ((laneId / 4 + 8) / 16) * 8 + ((laneId * 2) & 7);  // T8~T15 控制
-        //     } else if (i == 2) {
-        //         // T0~T3 : T16, ... , T28~T31 : T23
-        //         Row_offset = (laneId / 4 + 16) & 15, Col_offset = ((laneId / 4 + 16) / 16) * 8 + ((laneId * 2) & 7);  // T16~T23 控制
-        //     } else if (i == 3) {
-        //         // T0~T3 : T24, ... , T28~T31 : T31
-        //         Row_offset = (laneId / 4 + 24) & 15, Col_offset = ((laneId / 4 + 24) / 16) * 8 + ((laneId * 2) & 7);  // T24~T31 控制
-        //     }
+//     int Row_offset, Col_offset;
+//     if (i == 0) {
+//         // T0~T3 : T0, ... , T28~T31 : T7
+//         Row_offset = (laneId / 4) & 15, Col_offset = ((laneId / 4) / 16) * 8 + ((laneId * 2) & 7);  // T0~T7 控制
+//     } else if (i == 1) {
+//         // T0~T3 : T8, ... , T28~T31 : T15
+//         Row_offset = (laneId / 4 + 8) & 15, Col_offset = ((laneId / 4 + 8) / 16) * 8 + ((laneId * 2) & 7);  // T8~T15 控制
+//     } else if (i == 2) {
+//         // T0~T3 : T16, ... , T28~T31 : T23
+//         Row_offset = (laneId / 4 + 16) & 15, Col_offset = ((laneId / 4 + 16) / 16) * 8 + ((laneId * 2) & 7);  // T16~T23 控制
+//     } else if (i == 3) {
+//         // T0~T3 : T24, ... , T28~T31 : T31
+//         Row_offset = (laneId / 4 + 24) & 15, Col_offset = ((laneId / 4 + 24) / 16) * 8 + ((laneId * 2) & 7);  // T24~T31 控制
+//     }
 
-        //     int bankId = ((Row_offset * BK + Col_offset) / 2) & 31;
-        //     cudaLog("RA[%d]: (%d, %d) bankId: %d\n", i, Row_offset, Col_offset, bankId);
-        // }
+//     int bankId = ((Row_offset * BK + Col_offset) / 2) & 31;
+//     cudaLog("RA[%d]: (%d, %d) bankId: %d\n", i, Row_offset, Col_offset, bankId);
+// }

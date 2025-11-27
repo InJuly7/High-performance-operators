@@ -12,7 +12,7 @@ using namespace nvcuda;
 using half_t = half_float::half;
 
 #define WARP_SIZE 32
-#define CEIL_DIV(M, N) (((M) + (N) - 1) / (N))
+#define CEIL_DIV(M, N) (((M) + (N)-1) / (N))
 
 // Vector Access
 #define HALF2(value) (reinterpret_cast<half2 *>(&(value)))[0]
@@ -54,14 +54,14 @@ using half_t = half_float::half;
 
 template <unsigned int MMA_M, unsigned int MMA_K, unsigned int MMA_N, unsigned int WARP_M, unsigned int WARP_N, unsigned int TM, unsigned int TN,
           unsigned int STAGE>
-__global__ void hgemm_mma_m16n8k16_W2x4_T4x4_stages(half* A, half* B, half* C, const int M, const int K, const int N) {
+__global__ void hgemm_mma_m16n8k16_W2x4_T4x4_stages(half *A, half *B, half *C, const int M, const int K, const int N) {
     const int BM = MMA_M * WARP_M * TM;
     const int BK = MMA_K;
     const int BN = MMA_N * WARP_N * TN;
 
-    A += blockIdx.y * BM * K;  // BM * K
-    B += blockIdx.x * BN; // K * BN
-    C += blockIdx.y * BM * N + blockIdx.x * BN; // BM * BN
+    A += blockIdx.y * BM * K;                    // BM * K
+    B += blockIdx.x * BN;                        // K * BN
+    C += blockIdx.y * BM * N + blockIdx.x * BN;  // BM * BN
 
     __shared__ half SMem_A[STAGE][BM][BK];
     __shared__ half SMem_B[STAGE][BK][BN];
@@ -88,11 +88,11 @@ __global__ void hgemm_mma_m16n8k16_W2x4_T4x4_stages(half* A, half* B, half* C, c
 
     const int SMemA_stage_offset = BM * BK;
     const int SMemB_stage_offset = BK * BN;
-    
+
     const uint32_t SMemA_ptr = __cvta_generic_to_shared(&SMem_A[0][ST_SMemA_Row][ST_SMemA_Col]);
     const uint32_t SMemB_ptr = __cvta_generic_to_shared(&SMem_B[0][ST_SMemB_Row][ST_SMemB_Col]);
 
-    // Load (STAGE - 1) GMemA(BM * BK)/B(BN * BK)  Store SMemA(BM * BK)/B(BN * BK) 
+    // Load (STAGE - 1) GMemA(BM * BK)/B(BN * BK)  Store SMemA(BM * BK)/B(BN * BK)
     for (int s = 0; s < STAGE - 1; s++) {
         int LD_GMemA_Col = s * BK + ST_SMemA_Col;
         int LD_GMemB_Row = s * BK + ST_SMemB_Row;
@@ -104,22 +104,22 @@ __global__ void hgemm_mma_m16n8k16_W2x4_T4x4_stages(half* A, half* B, half* C, c
         CP_ASYNC_CG(SMemB_stage_ptr, &B[LD_GMemB_Row * N + LD_GMemB_Col], 16);
         CP_ASYNC_COMMIT_GROUP();
     }
-    
+
     int load_buf_idx = STAGE - 1;
     int compute_buf_idx = 0;
 
     const int LD_SMemA_Row = ((warpId * 32) / 128) * 64;
     const int LD_SMemB_Col = (warpId * 32) & 127;
-    
+
     const int MMA_Row = laneId & 15;
     const int MMA_Col = (laneId / 16) * 8;
-    
+
     for (int k = (STAGE - 1) * BK; k < K; k += BK) {
         int LD_GMemA_Col = k + ST_SMemA_Col;
         int LD_GMemB_Row = k + ST_SMemB_Row;
         uint32_t SMemA_stage_ptr = SMemA_ptr + (load_buf_idx * SMemA_stage_offset) * sizeof(half);
         uint32_t SMemB_stage_ptr = SMemB_ptr + (load_buf_idx * SMemB_stage_offset) * sizeof(half);
-        
+
         // 8 half/thread
         CP_ASYNC_CG(SMemA_stage_ptr, &A[LD_GMemA_Row * K + LD_GMemA_Col], 16);
         CP_ASYNC_CG(SMemB_stage_ptr, &B[LD_GMemB_Row * N + LD_GMemB_Col], 16);
@@ -127,7 +127,7 @@ __global__ void hgemm_mma_m16n8k16_W2x4_T4x4_stages(half* A, half* B, half* C, c
 
         // Load SMemA/B Store Register. MMA
         uint32_t RA[TM][4], RB[TN][2];
-        
+
         // 保证最开始提交的stage group GMem ==> SMem 完成
         CP_ASYNC_WAIT_GROUP(STAGE - 1);
         __syncthreads();
@@ -135,7 +135,7 @@ __global__ void hgemm_mma_m16n8k16_W2x4_T4x4_stages(half* A, half* B, half* C, c
         //  声明 warp_tile 数组指针
         half(*warp_tile_A)[BK] = reinterpret_cast<half(*)[BK]>(&SMem_A[compute_buf_idx][LD_SMemA_Row][0]);
         half(*warp_tile_B)[BN] = reinterpret_cast<half(*)[BN]>(&SMem_B[compute_buf_idx][0][LD_SMemB_Col]);
-        
+
         for (int tm = 0; tm < TM; tm++) {
             half(*tile_A)[BK] = reinterpret_cast<half(*)[BK]>(&warp_tile_A[tm * MMA_M][0]);
             // x4.m8n8
@@ -156,24 +156,23 @@ __global__ void hgemm_mma_m16n8k16_W2x4_T4x4_stages(half* A, half* B, half* C, c
                           RC[tm][tn][1]);
             }
         }
-        compute_buf_idx = (compute_buf_idx + 1) & (STAGE - 1); 
-        load_buf_idx = (load_buf_idx + 1) & (STAGE - 1); 
+        compute_buf_idx = (compute_buf_idx + 1) & (STAGE - 1);
+        load_buf_idx = (load_buf_idx + 1) & (STAGE - 1);
         __syncthreads();
     }
 
     // Load (STAGE - 1) SMemA/B Store Register. MMA
     CP_ASYNC_WAIT_GROUP(0);
     __syncthreads();
-    
-    
+
     int stage_buf_idx = compute_buf_idx;
-    for(int s = 0; s < STAGE - 1; s++) {
+    for (int s = 0; s < STAGE - 1; s++) {
         //  声明 warp_tile 数组指针
         half(*warp_tile_A)[BK] = reinterpret_cast<half(*)[BK]>(&SMem_A[stage_buf_idx][LD_SMemA_Row][0]);
         half(*warp_tile_B)[BN] = reinterpret_cast<half(*)[BN]>(&SMem_B[stage_buf_idx][0][LD_SMemB_Col]);
         // Load SMemA/B Store Register. MMA
         uint32_t RA[TM][4], RB[TN][2];
-        
+
         for (int tm = 0; tm < TM; tm++) {
             half(*tile_A)[BK] = reinterpret_cast<half(*)[BK]>(&warp_tile_A[tm * MMA_M][0]);
             // x4.m8n8
@@ -198,7 +197,6 @@ __global__ void hgemm_mma_m16n8k16_W2x4_T4x4_stages(half* A, half* B, half* C, c
         __syncthreads();
     }
 
-
     int ST_GMemC_Row = (laneId * 2) / 8;
     int ST_GMemC_Col = (laneId * 2) & 7;
     half *warp_tile_C = &C[LD_SMemA_Row * N + LD_SMemB_Col];
@@ -212,9 +210,9 @@ __global__ void hgemm_mma_m16n8k16_W2x4_T4x4_stages(half* A, half* B, half* C, c
 }
 
 int main() {
-    const int M = 128; // basic 128
-    const int K = 16*4*4; // basic 64
-    const int N = 128; // basic 128
+    const int M = 128;         // basic 128
+    const int K = 16 * 4 * 4;  // basic 64
+    const int N = 128;         // basic 128
 
     half_t *mat_A = (half_t *)malloc(M * K * sizeof(half_t));
     half_t *mat_B = (half_t *)malloc(K * N * sizeof(half_t));

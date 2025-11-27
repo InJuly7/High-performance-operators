@@ -4,11 +4,9 @@
 #include <iostream>
 #include <random>
 
-class Perf
-{
-public:
-    Perf(const std::string &name)
-    {
+class Perf {
+   public:
+    Perf(const std::string& name) {
         m_name = name;
         cudaEventCreate(&m_start);
         cudaEventCreate(&m_end);
@@ -16,8 +14,7 @@ public:
         cudaEventSynchronize(m_start);
     }
 
-    ~Perf()
-    {
+    ~Perf() {
         cudaEventRecord(m_end);
         cudaEventSynchronize(m_end);
         float elapsed_time = 0.0;
@@ -25,10 +22,10 @@ public:
         std::cout << m_name << " elapse: " << elapsed_time << " ms" << std::endl;
     }
 
-private:
+   private:
     std::string m_name;
     cudaEvent_t m_start, m_end;
-}; // class Perf
+};  // class Perf
 
 void cpu_sgemm(float* mat_A, float* mat_B, float* mat_C_cpu_cal, const int M, const int K, const int N) {
     for (int m = 0; m < M; m++) {
@@ -112,8 +109,10 @@ void bank_conflict_label(std::string str, int tid, int row[32], int col[32], int
             printf("Bank %2d: %d access\n", i, count[i]);
         }
     }
-    if(bfc > 1) printf("\nResult: %d-way bank conflict\n\n", bfc);
-    else printf("\nNo Bank conflict\n\n");
+    if (bfc > 1)
+        printf("\nResult: %d-way bank conflict\n\n", bfc);
+    else
+        printf("\nNo Bank conflict\n\n");
 }
 
 #endif

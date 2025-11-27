@@ -26,7 +26,7 @@ __device__ __forceinline__ float block_reduce_sum_f32(float val) {
     val = warp_reduce_sum_f32(val);
     if (laneId == 0) warpsum[warpId] = val;
     __syncthreads();
-    // tid == 0 返回 block_reduce_sum 
+    // tid == 0 返回 block_reduce_sum
     if (warpId == 0) {
         val = (laneId < NUM_WARPS) ? warpsum[laneId] : 0.0f;
         val = warp_reduce_sum_f32(val);
@@ -51,14 +51,13 @@ __device__ __forceinline__ float block_reduce_max_f32(float val) {
     val = warp_reduce_max_f32(val);
     if (laneId == 0) warpsum[warpId] = val;
     __syncthreads();
-    // tid == 0 返回 block_reduce_max 
+    // tid == 0 返回 block_reduce_max
     if (warpId == 0) {
         val = (laneId < NUM_WARPS) ? warpsum[laneId] : 0.0f;
         val = warp_reduce_max_f32(val);
     }
     return val;
 }
-
 
 // NOTE: softmax per-token
 // Softmax x: (S,h), y: (S,h)
@@ -70,16 +69,16 @@ template <unsigned int NUM_THREADS>
 __global__ void safe_softmax_v0_f32(float *mat_A, float *mat_B, int N) {
     float *thread_A_start = mat_A + blockIdx.x * N + threadIdx.x;
     float *thread_B_start = mat_B + blockIdx.x * N + threadIdx.x;
-    
+
     __shared__ float exp_sum;
     __shared__ float global_max;
     float val = thread_A_start[0];
     float local_max = block_reduce_max_f32<NUM_THREADS>(val);
-    if(threadIdx.x == 0) global_max = local_max;
+    if (threadIdx.x == 0) global_max = local_max;
     __syncthreads();
     float exp_val = expf(val - global_max);
     float local_sum = block_reduce_sum_f32<NUM_THREADS>(exp_val);
-    if(threadIdx.x == 0) exp_sum = local_sum;
+    if (threadIdx.x == 0) exp_sum = local_sum;
     __syncthreads();
     thread_B_start[0] = exp_val / exp_sum;
 }

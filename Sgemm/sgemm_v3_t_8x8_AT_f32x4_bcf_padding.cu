@@ -7,7 +7,7 @@
 #include "./include/util.hpp"
 #include "../include/cuda_log.cuh"
 
-#define CEIL_DIV(M, N) (((M) + (N) - 1) / (N))
+#define CEIL_DIV(M, N) (((M) + (N)-1) / (N))
 #define LDST128BITS(val) (reinterpret_cast<float4 *>(&(val)))[0]
 #define FLOAT4(val) (reinterpret_cast<float4 *>(&(val)))[0]
 
@@ -50,10 +50,9 @@ __global__ void sgemm_v3_t_8x8_AT_f32x4_bcf_padding(float *mat_A, float *mat_B, 
         mat_B += BK * N;
         __syncthreads();
 
-    
         for (int bk = 0; bk < BK; bk++) {
             for (int tm = 0; tm < TM; tm += 4) FLOAT4(LD_SMem_Reg_A[tm]) = FLOAT4(SMem_A[bk][LDST_ROW_Reg * TM + tm]);
-            for (int tn = 0; tn < TN; tn += 4) FLOAT4(LD_SMem_Reg_B[tn]) = FLOAT4(SMem_B[bk][LDST_COL_Reg + tn]); 
+            for (int tn = 0; tn < TN; tn += 4) FLOAT4(LD_SMem_Reg_B[tn]) = FLOAT4(SMem_B[bk][LDST_COL_Reg + tn]);
 
             for (int tm = 0; tm < TM; tm++) {
                 for (int tn = 0; tn < TN; tn++) {

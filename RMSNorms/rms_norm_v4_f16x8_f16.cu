@@ -46,10 +46,10 @@ __device__ __forceinline__ half block_reduce_sum_f16_f16(half val) {
 // grid(N*K/K), block(K<1024) N=batch_size*seq_len, K=hidden_size
 // y=y'*g (g: scale)
 #define HALF2_VARIANCE(reg) (reg).x *(reg).x + (reg).y *(reg).y
-#define HALF2_RMS_NORM(reg_y, reg_x, s_variance, g)           \
-    do {                                          \
-        (reg_y).x = (reg_x).x * s_variance * (g); \
-        (reg_y).y = (reg_x).y * s_variance * (g); \
+#define HALF2_RMS_NORM(reg_y, reg_x, s_variance, g) \
+    do {                                            \
+        (reg_y).x = (reg_x).x * s_variance * (g);   \
+        (reg_y).y = (reg_x).y * s_variance * (g);   \
     } while (0)
 
 template <unsigned int NUM_THREADS>
@@ -75,7 +75,7 @@ __global__ void rms_norm_v4_f16x8_f16(half *mat_A, half *mat_B, float g, int N, 
     variance = block_reduce_sum_f16_f16<NUM_THREADS>(variance);
     if (threadIdx.x == 0) s_variance = hrsqrt(variance / K_ + epsilon);
     __syncthreads();
-    half2 reg_B_0, reg_B_1,reg_B_2,reg_B_3;
+    half2 reg_B_0, reg_B_1, reg_B_2, reg_B_3;
     HALF2_RMS_NORM(reg_B_0, reg_A_0, s_variance, g_);
     HALF2_RMS_NORM(reg_B_1, reg_A_1, s_variance, g_);
     HALF2_RMS_NORM(reg_B_2, reg_A_2, s_variance, g_);
@@ -107,10 +107,10 @@ int main() {
     cpu_rms_norm(mat_A, mat_B_cpu_calc, g, N, K);
 
     dim3 grid(N);
-    dim3 block(K/8);
+    dim3 block(K / 8);
     for (int i = 0; i < 5; i++) {
         Perf perf("rms_norm_v4_f16x8_f16");
-        rms_norm_v4_f16x8_f16<K/8><<<grid, block>>>(mat_A_device, mat_B_device, g, N, K);
+        rms_norm_v4_f16x8_f16<K / 8><<<grid, block>>>(mat_A_device, mat_B_device, g, N, K);
     }
     cudaMemcpy(mat_B_gpu_calc, mat_B_device, N * K * sizeof(half_t), cudaMemcpyDeviceToHost);
 

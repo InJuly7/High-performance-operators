@@ -12,7 +12,7 @@ using namespace nvcuda;
 using half_t = half_float::half;
 
 #define WARP_SIZE 32
-#define CEIL_DIV(M, N) (((M) + (N) - 1) / (N))
+#define CEIL_DIV(M, N) (((M) + (N)-1) / (N))
 
 // Vector Access
 #define HALF2(value) (reinterpret_cast<half2 *>(&(value)))[0]
@@ -74,11 +74,11 @@ __global__ void hgemmT_v0_mma_m16n8k16_W1x1_T1x1_sw(half *A, half *B, half *C, c
     __shared__ half SMem_A[BM][BK];
     __shared__ half SMem_B[BN][BK];
     uint32_t RA[4], RB[2];
-    uint32_t RC[2] = {0,0};
+    uint32_t RC[2] = {0, 0};
 
     int warpId = threadIdx.x / WARP_SIZE;
     int laneId = threadIdx.x & (WARP_SIZE - 1);
-    
+
     // (16 * 16) / 32 = 8 E/T
     int LD_GMemA_Row = (threadIdx.x * 8) / 16;
     int LD_GMemA_Col = (threadIdx.x * 8) & 15;
@@ -108,14 +108,13 @@ __global__ void hgemmT_v0_mma_m16n8k16_W1x1_T1x1_sw(half *A, half *B, half *C, c
         HALF8(SMem_A[LD_GMemA_Row][swizzle_col]) = HALF8(A[LD_GMemA_Row * K + LD_GMemA_Col]);
         // cudaLog("row : %d, swizzle_col : %d\n",LD_GMemA_Row, swizzle_col);
 
-
         offset = LD_GMemB_Row * BK + LD_GMemB_Col;
         swizzle_col = swizzle<3, 1, 3>(offset, BK);
         HALF4(SMem_B[LD_GMemB_Row][swizzle_col]) = HALF4(B[LD_GMemB_Row * K + LD_GMemB_Col]);
         A += BK;
         B += BK;
         __syncthreads();
-    
+
         // Load SMemA/B  Store RegA/B
         // x4.m8n8
         int RegA_Ptr_Row = laneId & 15;
@@ -203,7 +202,7 @@ int main() {
     const int BN = 8;
     dim3 grid(CEIL_DIV(N, BN), CEIL_DIV(M, BM));
     dim3 block(32);
-    for(int i = 0; i < 5; i++) {
+    for (int i = 0; i < 5; i++) {
         Perf("hgemmT_v0_mma_m16n8k16_W1x1_T1x1_sw");
         hgemmT_v0_mma_m16n8k16_W1x1_T1x1_sw<BM, BK, BN><<<grid, block>>>(d_A, d_B, d_C_mma, M, K, N);
     }
@@ -223,4 +222,3 @@ int main() {
     cudaFree(d_C_cublas);
     return 0;
 }
-

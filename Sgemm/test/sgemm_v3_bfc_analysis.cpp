@@ -8,7 +8,7 @@ int main() {
     int OFFSET = 0;
     int SMem_A_Row = 8;
     int SMem_A_Col = 128;
-    for(int tid = 0; tid < 32; ++tid) {
+    for (int tid = 0; tid < 32; ++tid) {
         row[tid] = (tid * 4) % SMem_A_Row;
         col[tid] = (tid * 4) / SMem_A_Row;
     }
@@ -23,12 +23,12 @@ int main() {
         col[tid] = (tid * 4) % SMem_B_Col;
     }
     tid = 0, warpId = tid / 32;
-    bank_conflict_label("WRITE: GMem ==> SMem_B",tid, row, col, SMem_B_Row, SMem_B_Col, OFFSET);
+    bank_conflict_label("WRITE: GMem ==> SMem_B", tid, row, col, SMem_B_Row, SMem_B_Col, OFFSET);
 
     OFFSET = 4;
     SMem_B_Row = 8;
     SMem_B_Col = 128;
-    for(int tid = 0; tid < 32; ++tid) {
+    for (int tid = 0; tid < 32; ++tid) {
         row[tid] = 0;
         col[tid] = ((tid * 4) / 64) * 4;
     }
@@ -36,7 +36,7 @@ int main() {
     // bank_conflict_label("READ: SMem_A ==> Reg_A",tid, row, col, SMem_A_Row, SMem_A_Col, OFFSET);
 
     OFFSET = 4;
-    for(int tid = 0; tid < 32; ++tid) {
+    for (int tid = 0; tid < 32; ++tid) {
         row[tid] = 0;
         col[tid] = ((tid * 4) % 64);
     }

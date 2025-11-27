@@ -6,14 +6,11 @@
 #include <math.h>
 #include "/home/song/program/High-performance-operators/include/half.hpp"
 
-
 using half_t = half_float::half;
 
-class Perf
-{
-public:
-    Perf(const std::string &name)
-    {
+class Perf {
+   public:
+    Perf(const std::string& name) {
         m_name = name;
         cudaEventCreate(&m_start);
         cudaEventCreate(&m_end);
@@ -21,8 +18,7 @@ public:
         cudaEventSynchronize(m_start);
     }
 
-    ~Perf()
-    {
+    ~Perf() {
         cudaEventRecord(m_end);
         cudaEventSynchronize(m_end);
         float elapsed_time = 0.0;
@@ -30,11 +26,10 @@ public:
         std::cout << m_name << " elapse: " << elapsed_time << " ms" << std::endl;
     }
 
-private:
+   private:
     std::string m_name;
     cudaEvent_t m_start, m_end;
-}; // class Perf
-
+};  // class Perf
 
 void generateRandomHalfArray(half_t* arr, int N) {
     using namespace half_float;
@@ -45,7 +40,7 @@ void generateRandomHalfArray(half_t* arr, int N) {
 
     // 生成随机数
     for (int i = 0; i < N; i++) {
-        // 
+        //
         arr[i] = half_t(dis(gen));
     }
 }
@@ -155,7 +150,7 @@ void cpu_safe_softmax(half_t* mat_A, half_t* mat_B_cpu_calc, const int N1, const
         }
 
         // 计算 exp(x - max) 的和
-        half_t  sum_exp = (half_t)0.0f;
+        half_t sum_exp = (half_t)0.0f;
         for (int j = 0; j < N2; j++) {
             sum_exp += expf(mat_A[i * N2 + j] - max_val);
         }
@@ -180,4 +175,4 @@ void cpu_softmax(float* mat_A, float* mat_B_cpu_calc, const int N1, const int N2
         }
     }
 }
-#endif // UTIL_HPP
+#endif  // UTIL_HPP

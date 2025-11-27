@@ -26,7 +26,7 @@ __device__ __forceinline__ float block_reduce_sum_f32(float val) {
     val = warp_reduce_sum_f32(val);
     if (laneId == 0) warpsum[warpId] = val;
     __syncthreads();
-    // tid == 0 返回 block_reduce_sum 
+    // tid == 0 返回 block_reduce_sum
     if (warpId == 0) {
         val = (laneId < NUM_WARPS) ? warpsum[laneId] : 0.0f;
         val = warp_reduce_sum_f32(val);
@@ -47,7 +47,7 @@ __global__ void softmax_v0_f32(float *mat_A, float *mat_B, int N) {
     __shared__ float exp_sum;
     float exp_val = expf(thread_A_start[0]);
     float local_sum = block_reduce_sum_f32<NUM_THREADS>(exp_val);
-    if(threadIdx.x == 0) exp_sum = local_sum;
+    if (threadIdx.x == 0) exp_sum = local_sum;
     __syncthreads();
     thread_B_start[0] = exp_val / exp_sum;
 }

@@ -63,7 +63,7 @@ __global__ void rms_norm_v3_f16x2_f16(half *mat_A, half *mat_B, float g, int N, 
     half2 reg_B;
     reg_B.x = reg_A.x * s_variance * g_;
     reg_B.y = reg_A.y * s_variance * g_;
-    HALF2(mat_B_start[threadIdx.x  *2]) = reg_B;
+    HALF2(mat_B_start[threadIdx.x * 2]) = reg_B;
 }
 
 int main() {
@@ -87,10 +87,10 @@ int main() {
     cpu_rms_norm(mat_A, mat_B_cpu_calc, g, N, K);
 
     dim3 grid(N);
-    dim3 block(K/2);
+    dim3 block(K / 2);
     for (int i = 0; i < 5; i++) {
         Perf perf("rms_norm_v3_f16x2_f16");
-        rms_norm_v3_f16x2_f16<K/2><<<grid, block>>>(mat_A_device, mat_B_device, g, N, K);
+        rms_norm_v3_f16x2_f16<K / 2><<<grid, block>>>(mat_A_device, mat_B_device, g, N, K);
     }
     cudaMemcpy(mat_B_gpu_calc, mat_B_device, N * K * sizeof(half_t), cudaMemcpyDeviceToHost);
 

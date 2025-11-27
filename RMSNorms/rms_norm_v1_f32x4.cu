@@ -14,7 +14,6 @@
 #define BFLOAT2(value) (reinterpret_cast<__nv_bfloat162 *>(&(value))[0])
 #define LDST128BITS(value) (reinterpret_cast<float4 *>(&(value))[0])
 
-
 __device__ __forceinline__ float warp_reduce_sum_f32(float val) {
 #pragma unroll
     for (int mask = WARP_SIZE >> 1; mask >= 1; mask >>= 1) {
@@ -82,7 +81,7 @@ int main() {
     float *mat_B_gpu_calc = (float *)malloc(N * K * sizeof(float));
     cudaMalloc((void **)&mat_B_device, N * K * sizeof(float));
     dim3 grid(N);
-    dim3 block(K/4);
+    dim3 block(K / 4);
 
     for (int i = 0; i < 5; i++) {
         Perf perf("rms_norm_v1_f32x4");

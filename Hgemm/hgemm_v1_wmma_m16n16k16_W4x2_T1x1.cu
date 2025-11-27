@@ -10,24 +10,24 @@
 using namespace nvcuda;
 using half_t = half_float::half;
 
-#define CEIL_DIV(M, N) (((M) + (N) - 1) / (N))
+#define CEIL_DIV(M, N) (((M) + (N)-1) / (N))
 #define HALF2(value) (reinterpret_cast<half2 *>(&(value))[0])
 #define HALF4(value) (reinterpret_cast<float2 *>(&(value))[0])
 #define FLOAT4(val) (reinterpret_cast<float4 *>(&(val)))[0]
 
-template<unsigned int WM, unsigned int WK, unsigned int WN, unsigned int TM, unsigned int TN>
+template <unsigned int WM, unsigned int WK, unsigned int WN, unsigned int TM, unsigned int TN>
 __global__ void hgemm_v1_wmma_m16n16k16_W4x2_T1x1(half *A, half *B, half *C, const int M, const int K, const int N) {
     const int BM = WM * TM;
     const int BK = WK;
     const int BN = WN * TN;
-    
+
     A += blockIdx.y * BM * K;
     B += blockIdx.x * BN;
     C += blockIdx.y * BM * N + blockIdx.x * BN;
 
     __shared__ half SMem_A[BM][BK];
     __shared__ half SMem_B[BK][BN];
-    
+
     const int warpId = threadIdx.x / 32;
     // const int laneId = threadIdx.x & (31);
 
@@ -49,13 +49,13 @@ __global__ void hgemm_v1_wmma_m16n16k16_W4x2_T1x1(half *A, half *B, half *C, con
         A += WK;
         B += WK * N;
         __syncthreads();
-        
+
         wmma::fragment<wmma::matrix_a, WM, WN, WK, half, wmma::row_major> A_frag;
         wmma::fragment<wmma::matrix_b, WM, WN, WK, half, wmma::row_major> B_frag;
-        
+
         wmma::load_matrix_sync(A_frag, &SMem_A[LD_SMemA_Row * WM][0], BK);
         wmma::load_matrix_sync(B_frag, &SMem_B[0][LD_SMemB_Col], BN);
-        
+
         // C_frag += A_frag @ B_frag
         wmma::mma_sync(C_frag, A_frag, B_frag, C_frag);
         __syncthreads();

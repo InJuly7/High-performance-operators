@@ -47,7 +47,7 @@ int main(int agrc, char **argv) {
     dim3 Grid(BLOCK_NUM);
     dim3 Block(THREAD_PER_BLOCK);
 
-    for(int i = 0; i < 5; i++) {
+    for (int i = 0; i < 5; i++) {
         reduce_v0_naive<<<Grid, Block>>>(vector_device, vector_device_out);
         cudaDeviceSynchronize();
     }

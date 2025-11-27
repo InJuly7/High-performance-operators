@@ -20,7 +20,7 @@ struct __align__(8) MD {
     float d;
 };
 
-template<unsigned int NUM_THREADS>
+template <unsigned int NUM_THREADS>
 __device__ __forceinline__ MD warp_reduce_md(MD val) {
 #pragma unroll
     for (int delta = NUM_THREADS >> 1; delta >= 1; delta >>= 1) {
@@ -58,15 +58,15 @@ __global__ void online_softmax_v1_f32x4(float *mat_A, float *mat_B, int N) {
     float local_d = __expf(reg_A.x - local_m) + __expf(reg_A.y - local_m) + __expf(reg_A.z - local_m) + __expf(reg_A.w - local_m);
     MD local_md = {local_m, local_d};
     MD warp_md = warp_reduce_md<WARP_SIZE>(local_md);
-    if(landId == 0) warp_MD[warpId] = warp_md;
+    if (landId == 0) warp_MD[warpId] = warp_md;
     __syncthreads();
-    
+
     __shared__ MD block_md;
     MD zero_md = {-FLT_MAX, 1.0f};
-    if(warpId == 0) {
+    if (warpId == 0) {
         local_md = (landId < WARP_NUM) ? warp_MD[landId] : zero_md;
         warp_md = warp_reduce_md<WARP_NUM>(local_md);
-        if(landId == 0) block_md = warp_md;
+        if (landId == 0) block_md = warp_md;
     }
     __syncthreads();
     float4 reg_B;
@@ -93,11 +93,11 @@ int main() {
     float *mat_B_gpu_calc = (float *)malloc(N1 * N2 * sizeof(float));
     cudaMalloc((void **)&mat_B_device, N1 * N2 * sizeof(float));
     dim3 grid(N1);
-    dim3 block(N2/4);
+    dim3 block(N2 / 4);
 
     for (int i = 0; i < 5; i++) {
         Perf perf("online_softmax_v1_f32x4");
-        online_softmax_v1_f32x4<N2/4><<<grid, block>>>(mat_A_device, mat_B_device, N2);
+        online_softmax_v1_f32x4<N2 / 4><<<grid, block>>>(mat_A_device, mat_B_device, N2);
     }
 
     cudaMemcpy(mat_B_gpu_calc, mat_B_device, N1 * N2 * sizeof(float), cudaMemcpyDeviceToHost);

@@ -7,7 +7,7 @@
 #include "../include/util.hpp"
 #include "../../include/cuda_log.cuh"
 
-#define CEIL_DIV(M, N) (((M) + (N) - 1) / (N))
+#define CEIL_DIV(M, N) (((M) + (N)-1) / (N))
 #define LDST128BITS(val) (reinterpret_cast<float4 *>(&(val)))[0]
 #define FLOAT4(val) (reinterpret_cast<float4 *>(&(val)))[0]
 
@@ -37,8 +37,6 @@ __global__ void sgemm_v3_t_8x8_AT_f32x4_bcf_1(float *mat_A, float *mat_B, float 
     int LDST_swizzle_row_B = (threadIdx.x * 4) & 7;
     int LDST_swizzle_col_B = ((threadIdx.x * 4) / 8) & 15;
 
-
-    
     for (int k = 0; k < K; k += BK) {
         LDST128BITS(ST_SMem_Reg_A[0]) = LDST128BITS(mat_A[LDST_row_A * K + LDST_col_A]);
         LDST128BITS(ST_SMem_Reg_B[0]) = LDST128BITS(mat_B[LDST_row_B * N + LDST_col_B]);
@@ -83,7 +81,6 @@ __global__ void sgemm_v3_t_8x8_AT_f32x4_bcf_1(float *mat_A, float *mat_B, float 
             // cudaLog("Read SMem_A[%d,%d]\n", 0, LDST_ROW_Reg * TM + 0);
             // cudaLog("Read SMem_A[%d,%d]\n", 0, LDST_ROW_Reg * TM + 4);
 
-
             for (int tn = 0; tn < TN; tn++) {
                 LD_SMem_Reg_B[tn] = SMem_B[bk][(tn * 16) + LDST_swizzle_col_B];
             }
@@ -112,7 +109,6 @@ __global__ void sgemm_v3_t_8x8_AT_f32x4_bcf_1(float *mat_A, float *mat_B, float 
     }
     // cudaLog("Save GMem_C[%d,%d]\n", LDST_ROW_Reg * TM + 0, LDST_COL_Reg + 0);
     // cudaLog("Save GMem_C[%d,%d]\n", LDST_ROW_Reg * TM + 7, LDST_COL_Reg + 4);
-
 }
 
 int main() {

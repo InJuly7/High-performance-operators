@@ -10,7 +10,7 @@
 using namespace nvcuda;
 using half_t = half_float::half;
 
-#define CEIL_DIV(M, N) (((M) + (N) - 1) / (N))
+#define CEIL_DIV(M, N) (((M) + (N)-1) / (N))
 #define HALF2(value) (reinterpret_cast<half2 *>(&(value)))[0]
 #define HALF4(value) (reinterpret_cast<float2 *>(&(value)))[0]
 #define HALF8(value) (reinterpret_cast<float4 *>(&(value)))[0]
@@ -25,13 +25,13 @@ __global__ void hgemm_v2_wmma_m16n16k16_W2x4_T4x2(half *A, half *B, half *C, con
     B += blockIdx.x * BN;
     C += blockIdx.y * BM * N + blockIdx.x * BN;
 
-    __shared__ half SMem_A[BM][BK];   
+    __shared__ half SMem_A[BM][BK];
     __shared__ half SMem_B[BK][BN];
 
     wmma::fragment<wmma::accumulator, WM, WN, WK, half> C_frag[TM][TN];
 
     for (int tm = 0; tm < TM; ++tm) {
-        for(int tn = 0; tn < TN; ++tn) {
+        for (int tn = 0; tn < TN; ++tn) {
             wmma::fill_fragment(C_frag[tm][tn], 0.0);
         }
     }
@@ -43,7 +43,7 @@ __global__ void hgemm_v2_wmma_m16n16k16_W2x4_T4x2(half *A, half *B, half *C, con
 
     const int LD_GMemB_Row = (threadIdx.x * 8) / 128;
     const int LD_GMemB_Col = (threadIdx.x * 8) & 127;
-    
+
     const int warpId = threadIdx.x / 32;
     const int LD_SMemA_Row = ((warpId * 32) / 128) * 64;
     const int LD_SMemB_Col = (warpId * 32) & 127;
@@ -114,15 +114,13 @@ int main() {
     // Tile M 方向 4块, N 方向 2块
     const int TM = 4;
     const int TN = 2;
-    
 
     dim3 grid(CEIL_DIV(N, WN * TN * WARP_N), CEIL_DIV(M, WM * TM * WARP_M));
     dim3 block(256);
 
-    for(int i = 0; i < 1; i++) {
+    for (int i = 0; i < 1; i++) {
         Perf("hgemm_v2_wmma_m16n16k16_W2x4_T4x2");
-        hgemm_v2_wmma_m16n16k16_W2x4_T4x2<WM, WK, WN, WARP_M, WARP_N, TM, TN>
-            <<<grid, block>>>(mat_A_device, mat_B_device, mat_C_wmma, M, K, N);
+        hgemm_v2_wmma_m16n16k16_W2x4_T4x2<WM, WK, WN, WARP_M, WARP_N, TM, TN><<<grid, block>>>(mat_A_device, mat_B_device, mat_C_wmma, M, K, N);
     }
     cudaMemcpy(mat_C_wmma_calc, mat_C_wmma, M * N * sizeof(half_t), cudaMemcpyDeviceToHost);
 

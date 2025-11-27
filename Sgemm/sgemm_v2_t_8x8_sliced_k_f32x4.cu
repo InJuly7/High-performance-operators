@@ -36,11 +36,11 @@ __global__ void sgemm_v2_t_8x8_sliced_k_f32(float *mat_A, float *mat_B, float *m
 
         // out-product
         // thread[i, j] == > row = i * 8, col = j * 8
-    #pragma unroll
+#pragma unroll
         for (int k = 0; k < BK; k++) {
-        #pragma unroll
+#pragma unroll
             for (int tm = 0; tm < TM; tm++) {
-            #pragma unroll
+#pragma unroll
                 for (int tn = 0; tn < TN; tn++) {
                     reg_c[tm][tn] += SMem_A[threadIdx.y * 8 + tm][k] * SMem_B[k][threadIdx.x * 8 + tn];
                 }
@@ -51,7 +51,7 @@ __global__ void sgemm_v2_t_8x8_sliced_k_f32(float *mat_A, float *mat_B, float *m
     // thread[i,j] row : i * 8, col : j * 8
 #pragma unroll
     for (int tm = 0; tm < TM; tm++) {
-    #pragma unroll
+#pragma unroll
         for (int tn = 0; tn < TN; tn += 4) {
             FLOAT4(mat_C_start[(threadIdx.y * 8 + tm) * N + threadIdx.x * 8 + tn]) = FLOAT4(reg_c[tm][tn]);
         }

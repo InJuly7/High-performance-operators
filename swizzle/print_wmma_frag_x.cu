@@ -12,7 +12,7 @@ using namespace nvcuda;
 using half_t = half_float::half;
 
 #define WARP_SIZE 32
-#define CEIL_DIV(M, N) (((M) + (N) - 1) / (N))
+#define CEIL_DIV(M, N) (((M) + (N)-1) / (N))
 
 // Vector Access
 #define HALF2(value) (reinterpret_cast<half2 *>(&(value)))[0]
@@ -78,11 +78,11 @@ __global__ void print_frag(half *A, half *B) {
     uint32_t LD_SMemB_Ptr = __cvta_generic_to_shared(&SMem_B[laneId & 15][(laneId / 16) * 8]);
     LDMATRIX_X4(REG(B_frag.x[0]), REG(B_frag.x[2]), REG(B_frag.x[4]), REG(B_frag.x[6]), LD_SMemB_Ptr);
 
-    for (int i = 0; i < 8; i ++) {
+    for (int i = 0; i < 8; i++) {
         cudaLog("A_frag[%d]: %f\n", i, __half2float(A_frag.x[i]));
     }
 
-    for(int i = 0; i < 8; i++) {
+    for (int i = 0; i < 8; i++) {
         cudaLog("B_frag[%d]: %f\n", i, __half2float(B_frag.x[i]));
     }
 }
@@ -99,7 +99,6 @@ int main() {
     cudaMalloc((void **)&d_A, M * K * sizeof(half));
     cudaMalloc((void **)&d_B, K * N * sizeof(half));
 
-
     for (int i = 0; i < M * K; i++) {
         A[i] = half_float::half_cast<half_t, int>(i);
         // std::cout << A[i] << std::endl;
@@ -112,12 +111,12 @@ int main() {
 
     cudaMemcpy(d_A, A, M * K * sizeof(half), cudaMemcpyHostToDevice);
     cudaMemcpy(d_B, B, K * N * sizeof(half), cudaMemcpyHostToDevice);
-    
+
     dim3 grid(1);
     dim3 block(32);
     print_frag<<<grid, block>>>(d_A, d_B);
     cudaDeviceSynchronize();
-    
+
     free(A);
     free(B);
     cudaFree(d_A);
