@@ -15,8 +15,8 @@
 using half_t = half_float::half;
 
 #define WARP_SIZE 32
-#define HALF2(value) (reinterpret_cast<half2 *>(&(value))[0])
-#define LDST128BITS(value) (reinterpret_cast<float4 *>(&(value))[0])
+#define HALF2(value) (reinterpret_cast<half2*>(&(value))[0])
+#define LDST128BITS(value) (reinterpret_cast<float4*>(&(value))[0])
 
 __device__ __forceinline__ half warp_reduce_sum_f16_f16(half val) {
 #pragma unroll
@@ -46,7 +46,7 @@ __device__ __forceinline__ half block_reduce_sum_f16_f16(half val) {
 // 1/rms(x) = rsqrtf( sum(x^2)/K ) each row
 // grid(N*K/K), block(K<1024) N=batch_size*seq_len, K=hidden_size
 // y=y'*g (g: scale)
-#define HALF2_VARIANCE(reg) (reg).x *(reg).x + (reg).y *(reg).y
+#define HALF2_VARIANCE(reg) (reg).x*(reg).x + (reg).y*(reg).y
 #define HALF2_RMS_NORM(reg_y, reg_x, s_variance, g) \
     do {                                            \
         (reg_y).x = (reg_x).x * s_variance * (g);   \
@@ -54,9 +54,9 @@ __device__ __forceinline__ half block_reduce_sum_f16_f16(half val) {
     } while (0)
 
 template <unsigned int NUM_THREADS>
-__global__ void rms_norm_v5_f16x8_pack_f16(half *mat_A, half *mat_B, float g, int N, int K) {
-    half *thread_A_start = mat_A + blockIdx.x * K + threadIdx.x * 8;
-    half *thread_B_start = mat_B + blockIdx.x * K + threadIdx.x * 8;
+__global__ void rms_norm_f16_pack_kernel(half* mat_A, half* mat_B, float g, int N, int K) {
+    half* thread_A_start = mat_A + blockIdx.x * K + threadIdx.x * 8;
+    half* thread_B_start = mat_B + blockIdx.x * K + threadIdx.x * 8;
     const half epsilon = __float2half(1e-5f);
     const half g_ = __float2half(g);
     const half K_ = __int2half_rn(K);
@@ -77,45 +77,4 @@ __global__ void rms_norm_v5_f16x8_pack_f16(half *mat_A, half *mat_B, float g, in
         pack_B[i] = pack_A[i] * s_variance * g_;
     }
     LDST128BITS(thread_B_start[0]) = LDST128BITS(pack_B[0]);
-}
-
-int main() {
-    const int N = 4096;
-    const int K = 1024;
-    float g = 0.35f;
-
-    // CPU 内存分配 - 都使用 half_t
-    half_t *mat_A = (half_t *)malloc(N * K * sizeof(half_t));
-    half_t *mat_B_cpu_calc = (half_t *)malloc(N * K * sizeof(half_t));
-    half_t *mat_B_gpu_calc = (half_t *)malloc(N * K * sizeof(half_t));
-
-    generateRandomHalfArray(mat_A, N * K);
-
-    // GPU 内存分配 - 都使用 half
-    half *mat_A_device = NULL;
-    half *mat_B_device = NULL;
-    cudaMalloc((void **)&mat_A_device, N * K * sizeof(half_t));
-    cudaMalloc((void **)&mat_B_device, N * K * sizeof(half_t));
-    cudaMemcpy(mat_A_device, mat_A, N * K * sizeof(half_t), cudaMemcpyHostToDevice);
-    cpu_rms_norm(mat_A, mat_B_cpu_calc, g, N, K);
-
-    dim3 grid(N);
-    dim3 block(K / 8);
-    for (int i = 0; i < 5; i++) {
-        Perf perf("rms_norm_v5_f16x8_pack_f16");
-        rms_norm_v5_f16x8_pack_f16<K / 8><<<grid, block>>>(mat_A_device, mat_B_device, g, N, K);
-    }
-    cudaMemcpy(mat_B_gpu_calc, mat_B_device, N * K * sizeof(half_t), cudaMemcpyDeviceToHost);
-
-    printHalfArray(mat_B_cpu_calc, 10);
-    printHalfArray(mat_B_gpu_calc, 10);
-    compare_matrices(N, K, mat_B_cpu_calc, mat_B_gpu_calc);
-
-    free(mat_A);
-    free(mat_B_cpu_calc);
-    free(mat_B_gpu_calc);
-    cudaFree(mat_A_device);
-    cudaFree(mat_B_device);
-
-    return 0;
 }

@@ -1,0 +1,11 @@
+#include "rms_norm.cuh"
+#include "../include/pybind.hpp"
+
+PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
+    TORCH_BINDING_COMMON_EXTENSION(rms_norm_f32);
+    TORCH_BINDING_COMMON_EXTENSION(rms_norm_f32x4);
+    TORCH_BINDING_COMMON_EXTENSION(rms_norm_f16);
+    TORCH_BINDING_COMMON_EXTENSION(rms_norm_f16x2);
+    TORCH_BINDING_COMMON_EXTENSION(rms_norm_f16x8);
+    TORCH_BINDING_COMMON_EXTENSION(rms_norm_f16_pack);
+}

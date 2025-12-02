@@ -115,7 +115,8 @@
         "ctgmath": "cpp",
         "ios": "cpp",
         "version": "cpp",
-        "__verbose_abort": "cpp"
+        "__verbose_abort": "cpp",
+        "strstream": "cpp"
     },
     
     "C_Cpp.errorSquiggles": "disabled",

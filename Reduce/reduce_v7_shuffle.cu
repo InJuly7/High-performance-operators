@@ -33,16 +33,16 @@ __global__ void reduce_v7_shuffle(float *vec_A, float *vec_B) {
     const int WARP_NUM = blockSize / WARP_SIZE;
     __shared__ float warpLevelSums[WARP_NUM];
     int warpId = threadIdx.x / WARP_SIZE;
-    int landId = threadIdx.x & (WARP_SIZE - 1);
+    int laneId = threadIdx.x & (WARP_SIZE - 1);
 
     sum = warp_shfl_Reduce<blockSize>(sum);
     // 每个 warp 中第一个 thread 存储 warp sum
-    if (landId == 0) warpLevelSums[warpId] = sum;
+    if (laneId == 0) warpLevelSums[warpId] = sum;
     __syncthreads();
     // 第一个 warp 再对所有的 warp sum 进行求和
     // 对第一个 warp sum 重新赋值
     if (warpId == 0) {
-        sum = warpLevelSums[landId];
+        sum = warpLevelSums[laneId];
         sum = warp_shfl_Reduce<WARP_SIZE>(sum);
     }
 

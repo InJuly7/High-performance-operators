@@ -3,7 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include "../include/kernel.cuh"
+#include "../include/common.hpp"
 #include "./include/util.hpp"
 
 // 每个Thread读2K元素, 写入1个元素
@@ -19,7 +20,7 @@ __global__ void sgemm_v0_gmem_f32(float *mat_A, float *mat_B, float *mat_C, int 
 }
 
 int main() {
-    const int M = 2048, K = 1024, N = 2048;
+    const int M = 1024, K = 1024, N = 1024;
     float *mat_A = (float *)malloc(M * K * sizeof(float));
     float *mat_B = (float *)malloc(K * N * sizeof(float));
 
@@ -43,8 +44,8 @@ int main() {
     dim3 block(BLOCK, BLOCK);
     dim3 grid((N + BLOCK - 1) / BLOCK, (M + BLOCK - 1) / BLOCK);
     for (int i = 0; i < 5; i++) {
+        Perf("sgemm_v0_gmem_f32");
         sgemm_v0_gmem_f32<<<grid, block>>>(mat_A_device, mat_B_device, mat_C_device, M, K, N);
-        cudaDeviceSynchronize();
     }
     cudaMemcpy(mat_C_gpu_calc, mat_C_device, M * N * sizeof(float), cudaMemcpyDeviceToHost);
     printFloatArray(mat_C_cpu_calc, 10);

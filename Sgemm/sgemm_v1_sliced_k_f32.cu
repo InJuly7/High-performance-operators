@@ -5,6 +5,8 @@
 #include <string.h>
 
 #include "./include/util.hpp"
+#include "../include/kernel.cuh"
+#include "../include/common.hpp"
 
 template <unsigned int BM, unsigned BK, unsigned BN>
 __global__ void sgemm_v2_sliced_k_f32(float *mat_A, float *mat_B, float *mat_C, int M, int K, int N) {
@@ -32,7 +34,7 @@ __global__ void sgemm_v2_sliced_k_f32(float *mat_A, float *mat_B, float *mat_C, 
 }
 
 int main() {
-    const int M = 2048, K = 1024, N = 2048;
+    const int M = 1024, K = 1024, N = 1024;
     float *mat_A = (float *)malloc(M * K * sizeof(float));
     float *mat_B = (float *)malloc(K * N * sizeof(float));
 
@@ -52,12 +54,13 @@ int main() {
 
     cpu_sgemm(mat_A, mat_B, mat_C_cpu_calc, M, K, N);
 
-    const int BM = 32, BK = 32, BN = 32;
+    const int BM = 16, BK = 16, BN = 16;
     dim3 block(BN, BM);
     dim3 grid((N + BN - 1) / BN, (M + BM - 1) / BM);
-    for (int i = 0; i < 5; i++) {
+
+    for (int i = 0; i < 50; i++) {
+        Perf timer("sgemm_v2_sliced_k_f32");
         sgemm_v2_sliced_k_f32<BM, BK, BN><<<grid, block>>>(mat_A_device, mat_B_device, mat_C_device, M, K, N);
-        cudaDeviceSynchronize();
     }
     cudaMemcpy(mat_C_gpu_calc, mat_C_device, M * N * sizeof(float), cudaMemcpyDeviceToHost);
 
