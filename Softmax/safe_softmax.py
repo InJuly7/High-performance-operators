@@ -263,9 +263,12 @@ def print_perf(
         print(f"{kernel:>24}: {out_val}, time:{times:.8f}ms")
     print(f"{'-'*100}")
 
+
 """
 @func: 重置config.tensor, 每个kernel的运行时间
 """
+
+
 def clear_status(config: Config = None):
     config.tensors = [None] * len(config.kernels)
     for k, v in config.kernels.items():

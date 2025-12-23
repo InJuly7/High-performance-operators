@@ -1,23 +1,8 @@
-#include <cuda_bf16.h>
-#include <cuda_fp16.h>
-#include <cuda_fp8.h>
-#include <cuda_runtime.h>
-#include <float.h>
-#include <stdlib.h>
-#include <algorithm>
-#include <iostream>
-#include <random>
-#include <string>
+#include "../include/common.hpp"
+#include "../include/pybind.hpp"
+#include "../include/kernel.cuh"
 
-#include "./include/util.hpp"
-#include "/home/song/program/High-performance-operators/include/half.hpp"
-
-using half_t = half_float::half;
-
-#define WARP_SIZE 32
-#define HALF2(value) (reinterpret_cast<half2 *>(&(value))[0])
-
-__device__ __forceinline__ half warp_reduce_sum_f16_f16(half val) {
+__device__ __forceinline__ float warp_reduce_sum_f32(float val) {
 #pragma unroll
     for (int mask = WARP_SIZE >> 1; mask >= 1; mask >>= 1) {
         val += __shfl_down_sync(0xffffffff, val, mask);
@@ -26,17 +11,17 @@ __device__ __forceinline__ half warp_reduce_sum_f16_f16(half val) {
 }
 
 template <unsigned int NUM_THREADS>
-__device__ __forceinline__ half block_reduce_sum_f16_f16(half val) {
-    const int NUM_WARPS = (NUM_THREADS + WARP_SIZE - 1) / WARP_SIZE;
+__device__ __forceinline__ float block_reduce_sum_f32(float val) {
+    const int NUM_WARPS = CEIL_DIV(NUM_THREADS, WARP_SIZE);
     const int warpId = threadIdx.x / WARP_SIZE;
     const int laneId = threadIdx.x & (WARP_SIZE - 1);
-    static __shared__ half warpsum[NUM_WARPS];
-    val = warp_reduce_sum_f16_f16(val);
+    static __shared__ float warpsum[NUM_WARPS];
+    val = warp_reduce_sum_f32(val);
     if (laneId == 0) warpsum[warpId] = val;
     __syncthreads();
     if (warpId == 0) {
-        val = (laneId < NUM_WARPS) ? warpsum[laneId] : __float2half(0.0f);
-        val = warp_reduce_sum_f16_f16(val);
+        val = (laneId < NUM_WARPS) ? warpsum[laneId] : 0.0f;
+        val = warp_reduce_sum_f32(val);
     }
     return val;
 }
@@ -46,23 +31,56 @@ __device__ __forceinline__ half block_reduce_sum_f16_f16(half val) {
 // grid(N*K/K), block(K<1024) N=batch_size*seq_len, K=hidden_size
 // y=y'*g (g: scale)
 template <unsigned int NUM_THREADS>
-__global__ void rms_norm_v3_f16x2_f16(half *mat_A, half *mat_B, float g, int N, int K) {
-    half *mat_A_start = mat_A + blockIdx.x * K;
-    half *mat_B_start = mat_B + blockIdx.x * K;
-    const half epsilon = __float2half(1e-5f);
-    const half g_ = __float2half(g);
-    const half K_ = __int2half_rn(K);
-    // 块内共享, 求出当前行 rsqrtf(sum(ai^2)/K)
-    __shared__ half s_variance;
+__global__ void rms_norm_f16x2_kernel(half* A, half* B, half* C, int K) {
+    half* thread_A_start = A + blockIdx.x * K + threadIdx.x * 2;
+    half* thread_B_start = B + threadIdx.x * 2;
+    half* thread_C_start = C + blockIdx.x * K + threadIdx.x * 2;
 
-    half2 reg_A = HALF2(mat_A_start[threadIdx.x * 2]);
-    half variance = reg_A.x * reg_A.x + reg_A.y * reg_A.y;
-    variance = block_reduce_sum_f16_f16<NUM_THREADS>(variance);
-    if (threadIdx.x == 0) s_variance = hrsqrt(variance / K_ + epsilon);
+    const float epsilon = 1e-5f;
+    float2 reg_A = __half22float2(HALF2(thread_A_start[0]));
+    float2 reg_B = __half22float2(HALF2(thread_B_start[0]));
+    // 块内共享, 求出当前行 rsqrtf(sum(ai^2)/K)
+    __shared__ float s_variance;
+    float variance = reg_A.x * reg_A.x + reg_A.y * reg_A.y;
+    variance = block_reduce_sum_f32<NUM_THREADS>(variance);
+    if (threadIdx.x == 0) s_variance = rsqrtf(variance / K + epsilon);
     __syncthreads();
-    half2 reg_B;
-    reg_B.x = reg_A.x * s_variance * g_;
-    reg_B.y = reg_A.y * s_variance * g_;
-    HALF2(mat_B_start[threadIdx.x * 2]) = reg_B;
+    reg_A.x = reg_A.x * s_variance * reg_B.x;
+    reg_A.y = reg_A.y * s_variance * reg_B.y;
+    HALF2(thread_C_start[0]) = __float22half2_rn(reg_A);
 }
 
+#define LAUNCH_RMS_NORM_F16x2(H)   \
+    rms_norm_f16x2_kernel<(H) / 2> \
+        <<<grid, block>>>(reinterpret_cast<half*>(A.data_ptr()), reinterpret_cast<half*>(B.data_ptr()), reinterpret_cast<half*>(C.data_ptr()), (H));
+
+#define DISPATCH_RMS_NORM_F16x2(S, H)                                    \
+    dim3 block((H) / 2);                                                 \
+    dim3 grid((S));                                                      \
+    switch ((H)) {                                                       \
+        case 64:                                                         \
+            LAUNCH_RMS_NORM_F16x2(64) break;                             \
+        case 128:                                                        \
+            LAUNCH_RMS_NORM_F16x2(128) break;                            \
+        case 256:                                                        \
+            LAUNCH_RMS_NORM_F16x2(256) break;                            \
+        case 512:                                                        \
+            LAUNCH_RMS_NORM_F16x2(512) break;                            \
+        case 1024:                                                       \
+            LAUNCH_RMS_NORM_F16x2(1024) break;                           \
+        case 2048:                                                       \
+            LAUNCH_RMS_NORM_F16x2(2048) break;                           \
+        default:                                                         \
+            throw std::runtime_error("only support H: 64/128/.../1024"); \
+            break;                                                       \
+    }
+
+void rms_norm_f16x2(torch::Tensor A, torch::Tensor B, torch::Tensor C) {
+    CHECK_TORCH_TENSOR_DTYPE(A, torch::kFloat16)
+    CHECK_TORCH_TENSOR_DTYPE(B, torch::kFloat16)
+    CHECK_TORCH_TENSOR_DTYPE(C, torch::kFloat16)
+    const int S = A.size(0);  // seqlens
+    const int H = A.size(1);
+    // const int N = S * H;
+    DISPATCH_RMS_NORM_F16x2(S, H)
+}

@@ -1,18 +1,6 @@
-#include <cuda.h>
-#include <cuda_runtime.h>
-#include <stdio.h>
-#include <iostream>
-
-#include <random>
-#include <string>
-#include "./include/util.hpp"
-
-#define WARP_SIZE 32
-#define INT4(value) (reinterpret_cast<int4*>(&(value))[0])
-#define FLOAT4(value) (reinterpret_cast<float4*>(&(value))[0])
-#define HALF2(value) (reinterpret_cast<half2*>(&(value))[0])
-#define BFLOAT2(value) (reinterpret_cast<__nv_bfloat162*>(&(value))[0])
-#define LDST128BITS(value) (reinterpret_cast<float4*>(&(value))[0])
+#include "../include/common.hpp"
+#include "../include/pybind.hpp"
+#include "../include/kernel.cuh"
 
 __device__ __forceinline__ float warp_reduce_sum_f32(float val) {
 #pragma unroll
@@ -43,11 +31,12 @@ __device__ __forceinline__ float block_reduce_sum_f32(float val) {
 // grid(N*K/K), block(K<1024) N=batch_size*seq_len, K=hidden_size
 // y=y'*g (g: scale)
 template <unsigned int NUM_THREADS>
-__global__ void rms_norm_f32x4_kernel(float* mat_A, float* mat_B, float g, int K) {
-    float* mat_A_start = mat_A + blockIdx.x * K;
-    float* mat_B_start = mat_B + blockIdx.x * K;
+__global__ void rms_norm_f32x4_kernel(float* A, float* B, float* C, int K) {
+    float* A_start = A + blockIdx.x * K;
+    float* C_start = C + blockIdx.x * K;
     const float epsilon = 1e-5f;
-    float4 reg_A = FLOAT4(mat_A_start[threadIdx.x * 4]);
+    float4 reg_A = FLOAT4(A_start[threadIdx.x * 4]);
+    float4 reg_B = FLOAT4(B[threadIdx.x * 4]);
     // 块内共享, 求出当前行 rsqrtf(sum(ai^2)/K)
     __shared__ float s_variance;
     float variance = reg_A.x * reg_A.x + reg_A.y * reg_A.y + reg_A.z * reg_A.z + reg_A.w * reg_A.w;
@@ -55,16 +44,16 @@ __global__ void rms_norm_f32x4_kernel(float* mat_A, float* mat_B, float g, int K
     if (threadIdx.x == 0) s_variance = rsqrtf(variance / (float)K + epsilon);
     __syncthreads();
 
-    float4 reg_B;
-    reg_B.x = reg_A.x * s_variance * g;
-    reg_B.y = reg_A.y * s_variance * g;
-    reg_B.z = reg_A.z * s_variance * g;
-    reg_B.w = reg_A.w * s_variance * g;
-    FLOAT4(mat_B_start[threadIdx.x * 4]) = reg_B;
+    reg_A.x = reg_A.x * s_variance * reg_B.x;
+    reg_A.y = reg_A.y * s_variance * reg_B.y;
+    reg_A.z = reg_A.z * s_variance * reg_B.z;
+    reg_A.w = reg_A.w * s_variance * reg_B.w;
+    FLOAT4(C_start[threadIdx.x * 4]) = reg_A;
 }
 
-#define LAUNCH_RMS_NORM_F32x4(H) \
-    rms_norm_f32x4_kernel<(H) / 4><<<grid, block>>>(reinterpret_cast<float*>(A.data_ptr()), reinterpret_cast<float*>(B.data_ptr()), g, (H));
+#define LAUNCH_RMS_NORM_F32x4(H)                                                                                                    \
+    rms_norm_f32x4_kernel<(H) / 4><<<grid, block>>>(reinterpret_cast<float*>(A.data_ptr()), reinterpret_cast<float*>(B.data_ptr()), \
+                                                    reinterpret_cast<float*>(C.data_ptr()), (H));
 
 #define DISPATCH_RMS_NORM_F32x4(S, H)                                     \
     dim3 block((H) / 4);                                                  \
@@ -87,12 +76,12 @@ __global__ void rms_norm_f32x4_kernel(float* mat_A, float* mat_B, float g, int K
             break;                                                        \
     }
 
-void rms_norm_f32x4(torch::Tensor A, torch::Tensor B, float g) {
+void rms_norm_f32x4(torch::Tensor A, torch::Tensor B, torch::Tensor C) {
     CHECK_TORCH_TENSOR_DTYPE(A, torch::kFloat32)
     CHECK_TORCH_TENSOR_DTYPE(B, torch::kFloat32)
-    CHECK_TORCH_TENSOR_SHAPE(A, B)
+    CHECK_TORCH_TENSOR_DTYPE(C, torch::kFloat32)
     const int S = A.size(0);  // seqlens
-    const int H = A.size(1);  // head size/kv_len
+    const int H = A.size(1);
     // const int N = S * H;
-    DISPATCH_RMS_NORM_F32x4(S, H, g)
+    DISPATCH_RMS_NORM_F32x4(S, H)
 }
